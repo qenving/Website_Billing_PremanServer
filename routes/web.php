@@ -9,11 +9,12 @@ use Illuminate\Support\Facades\Route;
 // Installation Routes
 Route::prefix('install')->middleware('guest')->group(function () {
     Route::get('/', [InstallController::class, 'index'])->name('install.index');
-    Route::post('/environment', [InstallController::class, 'checkEnvironment'])->name('install.environment');
-    Route::post('/database', [InstallController::class, 'setupDatabase'])->name('install.database');
-    Route::post('/admin', [InstallController::class, 'createAdmin'])->name('install.admin');
-    Route::post('/settings', [InstallController::class, 'setupSettings'])->name('install.settings');
-    Route::post('/complete', [InstallController::class, 'complete'])->name('install.complete');
+    Route::get('/requirements', [InstallController::class, 'requirements'])->name('install.requirements');
+    Route::get('/database', [InstallController::class, 'database'])->name('install.database');
+    Route::post('/database', [InstallController::class, 'databaseStore'])->name('install.database.store');
+    Route::get('/admin', [InstallController::class, 'admin'])->name('install.admin');
+    Route::post('/admin', [InstallController::class, 'adminStore'])->name('install.admin.store');
+    Route::get('/complete', [InstallController::class, 'complete'])->name('install.complete');
 });
 
 // Authentication Routes
