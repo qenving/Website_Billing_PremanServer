@@ -12,6 +12,8 @@ Route::prefix('install')->middleware('guest')->group(function () {
     Route::get('/requirements', [InstallController::class, 'requirements'])->name('install.requirements');
     Route::get('/database', [InstallController::class, 'database'])->name('install.database');
     Route::post('/database', [InstallController::class, 'databaseStore'])->name('install.database.store');
+    Route::get('/database/confirm', [InstallController::class, 'databaseConfirm'])->name('install.database.confirm');
+    Route::post('/database/reset', [InstallController::class, 'databaseReset'])->name('install.database.reset');
     Route::get('/admin', [InstallController::class, 'admin'])->name('install.admin');
     Route::post('/admin', [InstallController::class, 'adminStore'])->name('install.admin.store');
     Route::get('/complete', [InstallController::class, 'complete'])->name('install.complete');

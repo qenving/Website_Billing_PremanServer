@@ -112,7 +112,7 @@ class InstallController extends Controller
             return back()->withInput()->with('error', 'Database connection failed: ' . $e->getMessage());
         }
 
-        // Update .env file
+        // Update .env file first
         $this->updateEnvFile([
             'DB_HOST' => $request->db_host,
             'DB_PORT' => $request->db_port,
@@ -121,15 +121,82 @@ class InstallController extends Controller
             'DB_PASSWORD' => $request->db_password,
         ]);
 
-        // Run migrations
+        // Reload database configuration
+        Artisan::call('config:clear');
+        DB::purge('mysql');
+        DB::reconnect('mysql');
+
+        // Check if database has existing tables
         try {
-            Artisan::call('migrate', ['--force' => true]);
-            Artisan::call('db:seed', ['--force' => true]);
+            $tables = DB::select('SHOW TABLES');
+            if (count($tables) > 0) {
+                // Store database credentials in session for confirmation page
+                session([
+                    'install_db_credentials' => $request->only(['db_host', 'db_port', 'db_database', 'db_username', 'db_password']),
+                    'install_existing_tables' => count($tables),
+                ]);
+                return redirect()->route('install.database.confirm');
+            }
+        } catch (\Exception $e) {
+            // If we can't check tables, proceed anyway
+        }
+
+        // No existing tables, proceed with migration
+        return $this->runMigrations();
+    }
+
+    public function databaseConfirm()
+    {
+        if (!session('install_db_credentials')) {
+            return redirect()->route('install.database');
+        }
+
+        $tableCount = session('install_existing_tables', 0);
+        return view('install.database-confirm', compact('tableCount'));
+    }
+
+    public function databaseReset(Request $request)
+    {
+        if (!session('install_db_credentials')) {
+            return redirect()->route('install.database');
+        }
+
+        $action = $request->input('action');
+
+        if ($action === 'cancel') {
+            session()->forget(['install_db_credentials', 'install_existing_tables']);
+            return redirect()->route('install.database');
+        }
+
+        // User confirmed, drop all tables and reinstall
+        return $this->runMigrations(true);
+    }
+
+    protected function runMigrations($dropExisting = false)
+    {
+        try {
+            // Clear all caches first
+            Artisan::call('config:clear');
+            Artisan::call('cache:clear');
+            Artisan::call('route:clear');
+            Artisan::call('view:clear');
+
+            if ($dropExisting) {
+                // Use migrate:fresh to drop all tables and recreate
+                Artisan::call('migrate:fresh', ['--force' => true, '--seed' => true]);
+            } else {
+                // Normal migration
+                Artisan::call('migrate', ['--force' => true]);
+                Artisan::call('db:seed', ['--force' => true]);
+            }
+
+            // Clear session data
+            session()->forget(['install_db_credentials', 'install_existing_tables']);
+
+            return redirect()->route('install.admin');
         } catch (\Exception $e) {
             return back()->with('error', 'Migration failed: ' . $e->getMessage());
         }
-
-        return redirect()->route('install.admin');
     }
 
     public function admin()
