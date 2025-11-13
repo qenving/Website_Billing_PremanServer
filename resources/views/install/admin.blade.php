@@ -15,6 +15,12 @@
             </div>
 
             <div class="bg-white shadow-md rounded-lg p-8">
+                @if(session('success'))
+                <div class="mb-6 p-4 bg-green-50 border border-green-200 rounded">
+                    <p class="text-green-800">{{ session('success') }}</p>
+                </div>
+                @endif
+
                 <form method="POST" action="{{ route('install.admin.store') }}">
                     @csrf
 

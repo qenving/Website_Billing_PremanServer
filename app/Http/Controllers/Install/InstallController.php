@@ -158,7 +158,7 @@ class InstallController extends Controller
     public function databaseReset(Request $request)
     {
         if (!session('install_db_credentials')) {
-            return redirect()->route('install.database');
+            return redirect()->route('install.database')->with('error', 'Session expired. Please try again.');
         }
 
         $action = $request->input('action');
@@ -168,8 +168,12 @@ class InstallController extends Controller
             return redirect()->route('install.database');
         }
 
-        // User confirmed, drop all tables and reinstall
-        return $this->runMigrations(true);
+        if ($action === 'proceed') {
+            // User confirmed, drop all tables and reinstall
+            return $this->runMigrations(true);
+        }
+
+        return back()->with('error', 'Invalid action.');
     }
 
     protected function runMigrations($dropExisting = false)
@@ -183,18 +187,35 @@ class InstallController extends Controller
 
             if ($dropExisting) {
                 // Use migrate:fresh to drop all tables and recreate
-                Artisan::call('migrate:fresh', ['--force' => true, '--seed' => true]);
+                $exitCode = Artisan::call('migrate:fresh', ['--force' => true, '--seed' => true]);
+
+                // Check if migration was successful
+                if ($exitCode !== 0) {
+                    $output = Artisan::output();
+                    throw new \Exception('Migration command failed: ' . $output);
+                }
             } else {
                 // Normal migration
-                Artisan::call('migrate', ['--force' => true]);
+                $exitCode = Artisan::call('migrate', ['--force' => true]);
+                if ($exitCode !== 0) {
+                    $output = Artisan::output();
+                    throw new \Exception('Migration command failed: ' . $output);
+                }
+
                 Artisan::call('db:seed', ['--force' => true]);
             }
 
             // Clear session data
             session()->forget(['install_db_credentials', 'install_existing_tables']);
 
-            return redirect()->route('install.admin');
+            return redirect()->route('install.admin')->with('success', 'Database installed successfully!');
         } catch (\Exception $e) {
+            \Log::error('Installation migration failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'drop_existing' => $dropExisting
+            ]);
+
             return back()->with('error', 'Migration failed: ' . $e->getMessage());
         }
     }

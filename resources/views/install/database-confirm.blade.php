@@ -5,6 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Install HBM - Existing Installation Detected</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .loading {
+            pointer-events: none;
+            opacity: 0.6;
+        }
+        .spinner {
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #3498db;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-left: 8px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
 </head>
 <body class="bg-gray-100">
     <div class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
@@ -20,6 +40,12 @@
             </div>
 
             <div class="bg-white shadow-md rounded-lg p-8">
+                @if(session('error'))
+                <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded">
+                    <p class="text-red-800">{{ session('error') }}</p>
+                </div>
+                @endif
+
                 <div class="mb-6">
                     <div class="p-6 bg-yellow-50 border-2 border-yellow-300 rounded-lg">
                         <div class="flex items-start">
@@ -55,21 +81,44 @@
                     </ul>
                 </div>
 
-                <form method="POST" action="{{ route('install.database.reset') }}">
+                <form method="POST" action="{{ route('install.database.reset') }}" id="resetForm">
                     @csrf
 
                     <div class="flex flex-col sm:flex-row gap-4 mt-8">
-                        <button type="submit" name="action" value="cancel"
+                        <button type="submit" name="action" value="cancel" id="cancelBtn"
                                 class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-3 px-6 rounded-lg transition duration-200 text-center">
                             ← Cancel & Go Back
                         </button>
-                        <button type="submit" name="action" value="proceed"
-                                onclick="return confirm('Are you absolutely sure? This will delete ALL data in the database!')"
+                        <button type="submit" name="action" value="proceed" id="proceedBtn"
+                                onclick="return handleProceed()"
                                 class="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-200 text-center">
-                            Drop Tables & Reinstall →
+                            <span id="btnText">Drop Tables & Reinstall →</span>
                         </button>
                     </div>
                 </form>
+
+                <script>
+                    function handleProceed() {
+                        if (!confirm('Are you absolutely sure? This will delete ALL data in the database!')) {
+                            return false;
+                        }
+
+                        // Disable both buttons and show loading
+                        const form = document.getElementById('resetForm');
+                        const proceedBtn = document.getElementById('proceedBtn');
+                        const cancelBtn = document.getElementById('cancelBtn');
+                        const btnText = document.getElementById('btnText');
+
+                        proceedBtn.disabled = true;
+                        cancelBtn.disabled = true;
+                        proceedBtn.classList.add('loading');
+                        cancelBtn.classList.add('loading');
+
+                        btnText.innerHTML = 'Processing... <span class="spinner"></span>';
+
+                        return true;
+                    }
+                </script>
             </div>
 
             <div class="text-center text-sm text-gray-500">
