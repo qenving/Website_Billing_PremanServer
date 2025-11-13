@@ -286,4 +286,25 @@ class VirtfusionProvider implements ProvisioningProviderInterface
         $result->checkedAt = now();
         return $result;
     }
+
+    public function getAvailableTemplates(): array
+    {
+        try {
+            $response = $this->makeRequest('get', '/packages', []);
+
+            if (isset($response['data']) && is_array($response['data'])) {
+                return array_map(function($package) {
+                    return [
+                        'id' => $package['id'],
+                        'name' => $package['name'] ?? "Package {$package['id']}",
+                    ];
+                }, $response['data']);
+            }
+
+            return [];
+        } catch (\Exception $e) {
+            Log::error('Virtfusion getAvailableTemplates error', ['error' => $e->getMessage()]);
+            return [];
+        }
+    }
 }

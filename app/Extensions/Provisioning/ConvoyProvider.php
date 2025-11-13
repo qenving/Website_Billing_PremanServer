@@ -326,4 +326,25 @@ class ConvoyProvider implements ProvisioningProviderInterface
         $result->checkedAt = now();
         return $result;
     }
+
+    public function getAvailableTemplates(): array
+    {
+        try {
+            $response = $this->makeRequest('get', '/templates', []);
+
+            if (isset($response['data']) && is_array($response['data'])) {
+                return array_map(function($template) {
+                    return [
+                        'id' => $template['attributes']['id'] ?? $template['id'],
+                        'name' => $template['attributes']['name'] ?? $template['name'] ?? 'Unknown',
+                    ];
+                }, $response['data']);
+            }
+
+            return [];
+        } catch (\Exception $e) {
+            Log::error('Convoy getAvailableTemplates error', ['error' => $e->getMessage()]);
+            return [];
+        }
+    }
 }

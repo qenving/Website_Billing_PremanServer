@@ -301,4 +301,27 @@ class VirtualizorProvider implements ProvisioningProviderInterface
         $result->checkedAt = now();
         return $result;
     }
+
+    public function getAvailableTemplates(): array
+    {
+        try {
+            $response = $this->makeRequest('/ostemplates', ['act' => 'ostemplates']);
+
+            if (isset($response['ostemplates']) && is_array($response['ostemplates'])) {
+                $templates = [];
+                foreach ($response['ostemplates'] as $id => $template) {
+                    $templates[] = [
+                        'id' => $id,
+                        'name' => is_array($template) ? ($template['name'] ?? "Template {$id}") : $template,
+                    ];
+                }
+                return $templates;
+            }
+
+            return [];
+        } catch (\Exception $e) {
+            Log::error('Virtualizor getAvailableTemplates error', ['error' => $e->getMessage()]);
+            return [];
+        }
+    }
 }

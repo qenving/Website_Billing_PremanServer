@@ -324,4 +324,29 @@ class ProxmoxProvider implements ProvisioningProviderInterface
         $result->checkedAt = now();
         return $result;
     }
+
+    public function getAvailableTemplates(): array
+    {
+        try {
+            $response = $this->makeRequest('GET', "/nodes/{$this->config['node']}/qemu", []);
+
+            if (isset($response['data']) && is_array($response['data'])) {
+                $templates = array_filter($response['data'], function($vm) {
+                    return isset($vm['template']) && $vm['template'] == 1;
+                });
+
+                return array_map(function($template) {
+                    return [
+                        'id' => $template['vmid'],
+                        'name' => $template['name'] ?? "VMID {$template['vmid']}",
+                    ];
+                }, array_values($templates));
+            }
+
+            return [];
+        } catch (\Exception $e) {
+            Log::error('Proxmox getAvailableTemplates error', ['error' => $e->getMessage()]);
+            return [];
+        }
+    }
 }
