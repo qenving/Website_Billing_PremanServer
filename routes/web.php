@@ -83,7 +83,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin', 'check.2fa'
 
     // General Settings
     Route::get('settings', [Admin\SettingsController::class, 'index'])->name('settings.index');
-    Route::post('settings', [Admin\SettingsController::class, 'update'])->name('settings.update');
+    Route::put('settings', [Admin\SettingsController::class, 'update'])->name('settings.update');
+    Route::post('settings/clear-cache', [Admin\SettingsController::class, 'clearCache'])->name('settings.clear-cache');
 
     // Theme & Menu Management
     Route::get('theme', [Admin\ThemeController::class, 'index'])->name('theme.index');

@@ -2,13 +2,11 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Cache;
 
 class Setting extends Model
 {
-    use HasFactory;
-
     protected $fillable = [
         'key',
         'value',
@@ -16,51 +14,128 @@ class Setting extends Model
         'group',
         'label',
         'description',
+        'is_encrypted',
+        'sort_order',
     ];
 
-    // Helper methods untuk get/set settings dengan cache
+    protected $casts = [
+        'is_encrypted' => 'boolean',
+    ];
+
+    /**
+     * Get a setting value by key
+     */
     public static function get(string $key, $default = null)
+    {
+        return Cache::rememberForever("setting.{$key}", function () use ($key, $default) {
+            $setting = static::where('key', $key)->first();
+
+            if (!$setting) {
+                return $default;
+            }
+
+            return static::castValue($setting->value, $setting->type, $setting->is_encrypted);
+        });
+    }
+
+    /**
+     * Set a setting value
+     */
+    public static function set(string $key, $value): void
     {
         $setting = static::where('key', $key)->first();
 
-        if (!$setting) {
-            return $default;
+        if ($setting) {
+            if ($setting->is_encrypted) {
+                $value = encrypt($value);
+            }
+
+            $setting->update(['value' => $value]);
+        } else {
+            static::create([
+                'key' => $key,
+                'value' => $value,
+                'label' => ucwords(str_replace('_', ' ', $key)),
+            ]);
         }
 
-        return static::castValue($setting->value, $setting->type);
+        Cache::forget("setting.{$key}");
     }
 
-    public static function set(string $key, $value, string $type = 'string', string $group = 'general'): void
+    /**
+     * Get all settings as key-value array
+     */
+    public static function allSettings(): array
     {
-        static::updateOrCreate(
-            ['key' => $key],
-            [
-                'value' => is_array($value) ? json_encode($value) : $value,
-                'type' => $type,
-                'group' => $group,
-            ]
-        );
+        return Cache::rememberForever('settings.all', function () {
+            $settings = [];
+
+            foreach (static::query()->get() as $setting) {
+                $settings[$setting->key] = static::castValue(
+                    $setting->value,
+                    $setting->type,
+                    $setting->is_encrypted
+                );
+            }
+
+            return $settings;
+        });
     }
 
-    public static function getGroup(string $group): array
+    /**
+     * Get settings by group
+     */
+    public static function getByGroup(string $group): array
     {
-        $settings = static::where('group', $group)->get();
-        $result = [];
+        return static::where('group', $group)
+            ->orderBy('sort_order')
+            ->get()
+            ->keyBy('key')
+            ->toArray();
+    }
 
-        foreach ($settings as $setting) {
-            $result[$setting->key] = static::castValue($setting->value, $setting->type);
+    /**
+     * Clear settings cache
+     */
+    public static function clearCache(): void
+    {
+        Cache::forget('settings.all');
+
+        foreach (static::query()->pluck('key') as $key) {
+            Cache::forget("setting.{$key}");
+        }
+    }
+
+    /**
+     * Cast value to appropriate type
+     */
+    protected static function castValue($value, string $type, bool $isEncrypted)
+    {
+        if ($isEncrypted && $value) {
+            $value = decrypt($value);
         }
 
-        return $result;
-    }
-
-    protected static function castValue($value, string $type)
-    {
-        return match ($type) {
+        return match($type) {
             'boolean' => filter_var($value, FILTER_VALIDATE_BOOLEAN),
-            'integer' => (int) $value,
-            'json' => json_decode($value, true),
+            'number' => is_numeric($value) ? (float) $value : $value,
+            'json' => is_string($value) ? json_decode($value, true) : $value,
             default => $value,
         };
+    }
+
+    /**
+     * Boot method
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::saved(function () {
+            static::clearCache();
+        });
+
+        static::deleted(function () {
+            static::clearCache();
+        });
     }
 }

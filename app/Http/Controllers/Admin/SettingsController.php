@@ -3,89 +3,74 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\AuditLog;
 use App\Models\Setting;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Cache;
 
 class SettingsController extends Controller
 {
+    /**
+     * Display settings page
+     */
     public function index()
     {
-        $settings = Setting::all()->groupBy('group');
+        $groups = ['general', 'billing', 'email', 'system'];
+        $settings = [];
 
-        return view('admin.settings.index', compact('settings'));
+        foreach ($groups as $group) {
+            $settings[$group] = Setting::where('group', $group)
+                ->orderBy('sort_order')
+                ->get();
+        }
+
+        return view('admin.settings.index', compact('settings', 'groups'));
     }
 
+    /**
+     * Update settings
+     */
     public function update(Request $request)
     {
         $validated = $request->validate([
             'settings' => 'required|array',
-            'settings.*' => 'nullable|string|max:1000',
         ]);
 
         try {
             foreach ($validated['settings'] as $key => $value) {
-                Setting::updateOrCreate(
-                    ['key' => $key],
-                    ['value' => $value ?? '']
-                );
+                Setting::set($key, $value);
             }
 
-            // Clear cache
-            Cache::flush();
+            Setting::clearCache();
 
-            // Update .env if needed for critical settings
-            if ($request->has('settings.app_url')) {
-                $this->updateEnvFile('APP_URL', $request->input('settings.app_url'));
-            }
-
-            // Audit log
-            AuditLog::create([
-                'user_id' => auth()->id(),
-                'action' => 'settings.updated',
-                'description' => 'Updated system settings',
-                'ip_address' => $request->ip(),
-                'user_agent' => $request->userAgent(),
-            ]);
-
-            return back()->with('success', 'Settings updated successfully.');
+            return redirect()
+                ->route('admin.settings.index')
+                ->with('success', 'Settings updated successfully');
 
         } catch (\Exception $e) {
-            return back()->with('error', 'Failed to update settings: ' . $e->getMessage());
+            return back()
+                ->withErrors(['error' => 'Failed to update settings: ' . $e->getMessage()])
+                ->withInput();
         }
     }
 
-    protected function updateEnvFile($key, $value)
+    /**
+     * Clear cache
+     */
+    public function clearCache()
     {
-        $envFile = base_path('.env');
+        try {
+            \Artisan::call('cache:clear');
+            \Artisan::call('config:clear');
+            \Artisan::call('view:clear');
+            \Artisan::call('route:clear');
 
-        if (!file_exists($envFile)) {
-            return;
+            Setting::clearCache();
+
+            return redirect()
+                ->route('admin.settings.index')
+                ->with('success', 'All caches cleared successfully');
+
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => 'Failed to clear cache: ' . $e->getMessage()]);
         }
-
-        $content = file_get_contents($envFile);
-
-        // Escape special characters in value
-        $value = str_replace('"', '\"', $value);
-
-        // Check if key exists
-        if (preg_match("/^{$key}=.*/m", $content)) {
-            // Replace existing
-            $content = preg_replace("/^{$key}=.*/m", "{$key}=\"{$value}\"", $content);
-        } else {
-            // Add new
-            $content .= "\n{$key}=\"{$value}\"\n";
-        }
-
-        file_put_contents($envFile, $content);
-
-        // Clear config cache
-        if (function_exists('opcache_reset')) {
-            opcache_reset();
-        }
-
-        Artisan::call('config:clear');
     }
 }
