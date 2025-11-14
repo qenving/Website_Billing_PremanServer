@@ -112,6 +112,11 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin', 'check.2fa'
     Route::get('reports/services', [Admin\ReportController::class, 'services'])->name('reports.services');
     Route::get('reports/clients', [Admin\ReportController::class, 'clients'])->name('reports.clients');
     Route::get('reports/export', [Admin\ReportController::class, 'export'])->name('reports.export');
+
+    // Activity Logs
+    Route::get('activity-logs', [Admin\ActivityLogController::class, 'index'])->name('activity-logs.index');
+    Route::get('activity-logs/{activityLog}', [Admin\ActivityLogController::class, 'show'])->name('activity-logs.show');
+    Route::post('activity-logs/clear', [Admin\ActivityLogController::class, 'clear'])->name('activity-logs.clear');
 });
 
 // Client Routes
