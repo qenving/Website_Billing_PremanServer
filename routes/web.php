@@ -3,7 +3,7 @@
 use App\Http\Controllers\Admin;
 use App\Http\Controllers\Auth;
 use App\Http\Controllers\Client;
-use App\Http\Controllers\Install\InstallController;
+use App\Http\Controllers\InstallController;
 use Illuminate\Support\Facades\Route;
 
 // Installation Routes
@@ -16,6 +16,8 @@ Route::prefix('install')->middleware('guest')->group(function () {
     Route::post('/database/reset', [InstallController::class, 'databaseReset'])->name('install.database.reset');
     Route::get('/admin', [InstallController::class, 'admin'])->name('install.admin');
     Route::post('/admin', [InstallController::class, 'adminStore'])->name('install.admin.store');
+    Route::get('/smtp', [InstallController::class, 'smtp'])->name('install.smtp');
+    Route::post('/smtp', [InstallController::class, 'smtpStore'])->name('install.smtp.store');
     Route::get('/complete', [InstallController::class, 'complete'])->name('install.complete');
 });
 
