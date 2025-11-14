@@ -104,6 +104,14 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin', 'check.2fa'
     Route::post('tickets/{ticket}/reply', [Admin\TicketController::class, 'reply'])->name('tickets.reply');
     Route::post('tickets/{ticket}/close', [Admin\TicketController::class, 'close'])->name('tickets.close');
     Route::resource('ticket-departments', Admin\TicketDepartmentController::class);
+
+    // Reports & Analytics
+    Route::get('reports', [Admin\ReportController::class, 'index'])->name('reports.index');
+    Route::get('reports/revenue', [Admin\ReportController::class, 'revenue'])->name('reports.revenue');
+    Route::get('reports/sales', [Admin\ReportController::class, 'sales'])->name('reports.sales');
+    Route::get('reports/services', [Admin\ReportController::class, 'services'])->name('reports.services');
+    Route::get('reports/clients', [Admin\ReportController::class, 'clients'])->name('reports.clients');
+    Route::get('reports/export', [Admin\ReportController::class, 'export'])->name('reports.export');
 });
 
 // Client Routes
