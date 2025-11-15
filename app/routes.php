@@ -29,6 +29,9 @@ $router->get('/admin/payments', 'AdminController@payments');
 $router->get('/admin/tickets', 'AdminController@tickets');
 $router->get('/admin/settings', 'AdminController@settings');
 $router->get('/admin/activity-logs', 'AdminController@activityLogs');
+$router->get('/admin/integrity-checker', 'AdminController@integrityChecker');
+$router->post('/admin/integrity-generate', 'AdminController@integrityGenerate');
+$router->get('/admin/error-logs', 'AdminController@errorLogs');
 
 $router->get('/client/services', 'ClientController@services');
 $router->get('/client/orders', 'ClientController@myOrders');

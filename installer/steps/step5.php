@@ -54,6 +54,9 @@ try {
 
     file_put_contents(BASE_PATH . '/install.lock', date('Y-m-d H:i:s'));
 
+    require_once APP_PATH . '/security/integrity_checker.php';
+    IntegrityChecker::generateHashes();
+
     session_destroy();
 
     $installationComplete = true;

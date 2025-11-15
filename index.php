@@ -11,6 +11,9 @@ if (file_exists(BASE_PATH . '/install.lock')) {
         require_once BASE_PATH . '/config.php';
     }
 
+    require_once APP_PATH . '/core/ErrorHandler.php';
+    ErrorHandler::register();
+
     require_once APP_PATH . '/core/App.php';
     require_once APP_PATH . '/core/Router.php';
     require_once APP_PATH . '/core/Controller.php';

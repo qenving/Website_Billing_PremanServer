@@ -53,6 +53,7 @@
                     <a href="/admin/orders">Orders</a>
                     <a href="/admin/invoices">Invoices</a>
                     <a href="/admin/tickets">Tickets</a>
+                    <a href="/admin/integrity-checker">Security</a>
                     <a href="/admin/settings">Settings</a>
                 <?php else: ?>
                     <a href="/client/services">Services</a>
@@ -64,6 +65,11 @@
                 <div class="user-menu">
                     <span><?php echo htmlspecialchars(Session::get('user_name')); ?></span>
                     <div class="user-menu-dropdown">
+                        <?php if (Session::get('user_role') === 'admin'): ?>
+                            <a href="/admin/activity-logs">Activity Logs</a>
+                            <a href="/admin/error-logs">Error Logs</a>
+                            <hr style="margin: 8px 0; border: none; border-top: 1px solid #eee;">
+                        <?php endif; ?>
                         <a href="/client/account">Profile</a>
                         <a href="/logout">Logout</a>
                     </div>

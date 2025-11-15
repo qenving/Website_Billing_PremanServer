@@ -8,6 +8,8 @@ require_once APP_PATH . '/models/Payment.php';
 require_once APP_PATH . '/models/Ticket.php';
 require_once APP_PATH . '/models/ActivityLog.php';
 require_once APP_PATH . '/models/Setting.php';
+require_once APP_PATH . '/security/integrity_checker.php';
+require_once APP_PATH . '/core/ErrorHandler.php';
 
 class AdminController extends Controller {
 
@@ -72,5 +74,25 @@ class AdminController extends Controller {
         $activityModel = new ActivityLog();
         $activities = $activityModel->getRecent(100);
         $this->view('admin.activity_logs', compact('activities'));
+    }
+
+    public function integrityChecker() {
+        $this->checkAdmin();
+        $result = IntegrityChecker::verify();
+        $hashInfo = IntegrityChecker::getHashInfo();
+        $this->view('admin.integrity_checker', compact('result', 'hashInfo'));
+    }
+
+    public function integrityGenerate() {
+        $this->checkAdmin();
+        $result = IntegrityChecker::generateHashes();
+        Session::flash('success', $result['message']);
+        $this->redirect('/admin/integrity-checker');
+    }
+
+    public function errorLogs() {
+        $this->checkAdmin();
+        $errors = ErrorHandler::getLogs(100);
+        $this->view('admin.error_logs', compact('errors'));
     }
 }
