@@ -38,7 +38,7 @@ class ExtensionServiceProvider extends ServiceProvider
     }
 
     /**
-     * Load routes from extensions
+     * Load routes from extensions (categorized structure)
      */
     protected function loadExtensionRoutes(): void
     {
@@ -48,13 +48,24 @@ class ExtensionServiceProvider extends ServiceProvider
             return;
         }
 
-        foreach (glob($extensionsPath . '/*/routes/*.php') as $routeFile) {
-            $this->loadRoutesFrom($routeFile);
+        // Support categorized structure: extensions/category/extension-name/routes/*.php
+        $categories = ['payment-gateways', 'provisioning-modules'];
+
+        foreach ($categories as $category) {
+            $categoryPath = $extensionsPath . '/' . $category;
+
+            if (!is_dir($categoryPath)) {
+                continue;
+            }
+
+            foreach (glob($categoryPath . '/*/routes/*.php') as $routeFile) {
+                $this->loadRoutesFrom($routeFile);
+            }
         }
     }
 
     /**
-     * Load views from extensions
+     * Load views from extensions (categorized structure)
      */
     protected function loadExtensionViews(): void
     {
@@ -64,14 +75,25 @@ class ExtensionServiceProvider extends ServiceProvider
             return;
         }
 
-        $extensionDirs = glob($extensionsPath . '/*', GLOB_ONLYDIR);
+        // Support categorized structure: extensions/category/extension-name/views/
+        $categories = ['payment-gateways', 'provisioning-modules'];
 
-        foreach ($extensionDirs as $dir) {
-            $viewsPath = $dir . '/views';
+        foreach ($categories as $category) {
+            $categoryPath = $extensionsPath . '/' . $category;
 
-            if (is_dir($viewsPath)) {
-                $extensionName = basename($dir);
-                $this->loadViewsFrom($viewsPath, 'extension_' . $extensionName);
+            if (!is_dir($categoryPath)) {
+                continue;
+            }
+
+            $extensionDirs = glob($categoryPath . '/*', GLOB_ONLYDIR);
+
+            foreach ($extensionDirs as $dir) {
+                $viewsPath = $dir . '/views';
+
+                if (is_dir($viewsPath)) {
+                    $extensionName = basename($dir);
+                    $this->loadViewsFrom($viewsPath, 'extension_' . $extensionName);
+                }
             }
         }
     }

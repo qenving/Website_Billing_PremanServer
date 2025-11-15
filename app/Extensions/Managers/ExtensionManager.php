@@ -100,13 +100,12 @@ class ExtensionManager
         }
 
         try {
-            require_once $extensionFile;
-
+            // DO NOT use require_once - let Composer's PSR-4 autoloader handle it
             $extensionId = basename($path);
             $className = $this->getExtensionClassName($extensionId, $category);
 
             if (!class_exists($className)) {
-                Log::warning("Extension class not found: {$className}");
+                Log::warning("Extension class not found: {$className}. Make sure to run 'composer dump-autoload'");
                 return;
             }
 
