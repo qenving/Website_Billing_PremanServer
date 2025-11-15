@@ -1,6 +1,6 @@
 <?php
 
-namespace Extensions\StripeGateway;
+namespace Extensions\PaymentGateways\Stripe;
 
 use App\Extensions\Extension;
 use App\Extensions\Contracts\PaymentGatewayInterface;

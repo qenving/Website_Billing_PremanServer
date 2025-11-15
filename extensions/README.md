@@ -1,65 +1,116 @@
-# Extensions Directory
+# HBM Billing Extensions
 
-This directory contains all third-party extensions for the HBM Billing System.
+This directory contains all extensions for the HBM Billing System, organized by category.
+
+## Directory Structure
+
+Extensions are organized into categories:
+
+```
+extensions/
+├── payment-gateways/          # Payment gateway integrations
+│   ├── stripe/
+│   ├── midtrans/
+│   ├── xendit/
+│   ├── duitku/
+│   ├── tripay/
+│   ├── paypal/
+│   └── cryptomus/
+│
+└── provisioning-modules/      # Server/service provisioning modules
+    ├── pterodactyl/
+    ├── proxmox/
+    ├── virtualizor/
+    ├── virtfusion/
+    └── convoy/
+```
 
 ## What are Extensions?
 
-Extensions allow you to add custom functionality to the billing system without modifying the core code. Common extensions include:
+Extensions allow you to add custom functionality to the billing system without modifying the core code:
 
-- **Payment Gateways**: Accept payments via different providers (Stripe, PayPal, etc.)
-- **Provisioning Modules**: Automate server provisioning (cPanel, Plesk, Pterodactyl, etc.)
-- **Custom Features**: Add any custom functionality you need
+- **Payment Gateways**: Accept payments via different providers (Stripe, PayPal, Midtrans, etc.)
+- **Provisioning Modules**: Automate server provisioning (Pterodactyl, Proxmox, Virtualizor, etc.)
+
+## Available Extensions
+
+### Payment Gateways
+
+- **Stripe** - International credit card payments
+- **Midtrans** - Indonesian payment gateway
+- **Xendit** - Indonesian payment gateway
+- **Duitku** - Indonesian payment gateway
+- **Tripay** - Indonesian payment gateway
+- **PayPal** - International PayPal payments
+- **Cryptomus** - Cryptocurrency payments
+
+### Provisioning Modules
+
+- **Pterodactyl** - Game server panel integration
+- **Proxmox** - Proxmox VE VPS provisioning
+- **Virtualizor** - VPS provisioning platform
+- **VirtFusion** - VPS management platform
+- **Convoy** - Modern VPS control panel
 
 ## Extension Structure
 
 Each extension should follow this structure:
 
 ```
-extensions/
-└── your-extension/
-    ├── Extension.php          # Main extension class (required)
-    ├── config/
-    │   └── config.php         # Extension configuration
-    ├── database/
-    │   └── migrations/        # Database migrations
-    ├── routes/
-    │   ├── web.php            # Web routes
-    │   └── api.php            # API routes
-    ├── views/                 # Blade views
-    ├── assets/                # CSS, JS, images
-    ├── lang/                  # Translation files
-    └── README.md              # Extension documentation
+category/extension-name/
+├── Extension.php          # Main extension class (required)
+├── config/
+│   └── config.php         # Extension configuration
+├── database/
+│   └── migrations/        # Database migrations
+├── routes/
+│   ├── web.php            # Web routes
+│   └── api.php            # API routes
+├── views/                 # Blade views
+├── assets/                # CSS, JS, images
+│   └── logo.png
+├── lang/                  # Translation files
+└── README.md              # Extension documentation
 ```
 
 ## Creating an Extension
 
-### Step 1: Create Extension Directory
+### Step 1: Choose Category and Create Directory
 
+**For Payment Gateway:**
 ```bash
-mkdir -p extensions/my-extension
+mkdir -p extensions/payment-gateways/my-gateway
+```
+
+**For Provisioning Module:**
+```bash
+mkdir -p extensions/provisioning-modules/my-module
 ```
 
 ### Step 2: Create Extension.php
 
-Create `extensions/my-extension/Extension.php`:
+**Payment Gateway Example** (`payment-gateways/my-gateway/Extension.php`):
 
 ```php
 <?php
 
-namespace Extensions\MyExtension;
+namespace Extensions\PaymentGateways\MyGateway;
 
-use App\Extensions\Extension as BaseExtension;
+use App\Extensions\Extension;
+use App\Extensions\Contracts\PaymentGatewayInterface;
+use App\Models\Invoice;
+use App\Models\Payment;
 
-class Extension extends BaseExtension
+class Extension extends \App\Extensions\Extension implements PaymentGatewayInterface
 {
     public function getName(): string
     {
-        return 'My Extension';
+        return 'My Payment Gateway';
     }
 
     public function getDescription(): string
     {
-        return 'Description of what my extension does';
+        return 'Accept payments via My Gateway';
     }
 
     public function getVersion(): string
@@ -74,44 +125,105 @@ class Extension extends BaseExtension
 
     public function getExtensionId(): string
     {
-        return 'my-extension';
+        return 'my-gateway';
     }
 
-    public function register(): void
+    public function getGatewayId(): string
     {
-        // Register any services, bindings, etc.
+        return 'my-gateway';
     }
 
-    public function boot(): void
+    public function processPayment(Invoice $invoice, array $paymentData): array
     {
-        // Bootstrap extension code
+        // Implement payment processing
     }
+
+    public function handleWebhook(array $data): ?Payment
+    {
+        // Implement webhook handling
+    }
+
+    public function refund(Payment $payment, float $amount): array
+    {
+        // Implement refund
+    }
+
+    // ... other required methods
 }
 ```
 
-### Step 3: Implement Interface (if needed)
-
-For payment gateways, implement `PaymentGatewayInterface`:
+**Provisioning Module Example** (`provisioning-modules/my-module/Extension.php`):
 
 ```php
-use App\Extensions\Contracts\PaymentGatewayInterface;
+<?php
 
-class Extension extends BaseExtension implements PaymentGatewayInterface
-{
-    // Implement required methods
-}
-```
+namespace Extensions\ProvisioningModules\MyModule;
 
-For provisioning modules, implement `ProvisioningModuleInterface`:
-
-```php
+use App\Extensions\Extension;
 use App\Extensions\Contracts\ProvisioningModuleInterface;
+use App\Models\Service;
 
-class Extension extends BaseExtension implements ProvisioningModuleInterface
+class Extension extends \App\Extensions\Extension implements ProvisioningModuleInterface
 {
-    // Implement required methods
+    public function getName(): string
+    {
+        return 'My Provisioning Module';
+    }
+
+    public function getDescription(): string
+    {
+        return 'Automate provisioning with My System';
+    }
+
+    public function getVersion(): string
+    {
+        return '1.0.0';
+    }
+
+    public function getAuthor(): string
+    {
+        return 'Your Name';
+    }
+
+    public function getExtensionId(): string
+    {
+        return 'my-module';
+    }
+
+    public function getModuleId(): string
+    {
+        return 'my-module';
+    }
+
+    public function createAccount(Service $service, array $params): array
+    {
+        // Implement account creation
+    }
+
+    public function suspendAccount(Service $service): array
+    {
+        // Implement suspension
+    }
+
+    public function terminateAccount(Service $service): array
+    {
+        // Implement termination
+    }
+
+    // ... other required methods
 }
 ```
+
+### Step 3: Namespace Convention
+
+Extensions use a category-based namespace:
+
+- **Payment Gateways**: `Extensions\PaymentGateways\{ExtensionName}`
+- **Provisioning Modules**: `Extensions\ProvisioningModules\{ExtensionName}`
+
+**Examples:**
+- `extensions/payment-gateways/stripe/` → `Extensions\PaymentGateways\Stripe`
+- `extensions/provisioning-modules/pterodactyl/` → `Extensions\ProvisioningModules\Pterodactyl`
 
 ### Step 4: Add Extension Configuration
 
@@ -219,21 +331,38 @@ use App\Extensions\Managers\ExtensionManager;
 
 $extensionManager = app(ExtensionManager::class);
 
-// Get all extensions
+// Get all extensions (all categories)
 $extensions = $extensionManager->getExtensions();
 
-// Get specific extension
-$extension = $extensionManager->getExtension('my-extension');
+// Get extensions by category
+$paymentGateways = $extensionManager->getExtensionsByCategory('payment-gateways');
+$provisioningModules = $extensionManager->getExtensionsByCategory('provisioning-modules');
 
-// Get all payment gateways
+// Get specific extension (auto-search all categories)
+$extension = $extensionManager->getExtension('stripe');
+
+// Get specific extension by category (faster)
+$stripe = $extensionManager->getExtension('stripe', 'payment-gateways');
+
+// Get all payment gateways (quick access)
 $gateways = $extensionManager->getPaymentGateways();
 
-// Get specific gateway
+// Get specific payment gateway
 $stripe = $extensionManager->getPaymentGateway('stripe');
 
+// Get all provisioning modules (quick access)
+$modules = $extensionManager->getProvisioningModules();
+
+// Get specific provisioning module
+$pterodactyl = $extensionManager->getProvisioningModule('pterodactyl');
+
 // Install/uninstall extension
-$extensionManager->installExtension('my-extension');
-$extensionManager->uninstallExtension('my-extension');
+$extensionManager->installExtension('stripe', 'payment-gateways');
+$extensionManager->uninstallExtension('pterodactyl', 'provisioning-modules');
+
+// Get statistics
+$stats = $extensionManager->getStatistics();
+// Returns: ['total_extensions' => 12, 'payment_gateways' => 7, 'provisioning_modules' => 5]
 ```
 
 ## Extension Lifecycle
@@ -270,9 +399,26 @@ For questions or issues with the extension system:
 - Review example extensions in this directory
 - Contact support or submit an issue
 
-## Example Extensions
+## Included Extensions
 
-This directory includes example extensions:
-- `stripe-gateway`: Stripe payment gateway implementation
+This directory includes the following extensions:
 
-Study these examples to understand how to build your own extensions.
+### Payment Gateways (Placeholder Implementations)
+- `payment-gateways/stripe/` - Stripe payment gateway
+- `payment-gateways/midtrans/` - Midtrans payment gateway
+- `payment-gateways/xendit/` - Xendit payment gateway
+- `payment-gateways/duitku/` - Duitku payment gateway
+- `payment-gateways/tripay/` - Tripay payment gateway
+- `payment-gateways/paypal/` - PayPal payment gateway
+- `payment-gateways/cryptomus/` - Cryptomus cryptocurrency gateway
+
+### Provisioning Modules (Placeholder Implementations)
+- `provisioning-modules/pterodactyl/` - Pterodactyl game panel
+- `provisioning-modules/proxmox/` - Proxmox VE
+- `provisioning-modules/virtualizor/` - Virtualizor
+- `provisioning-modules/virtfusion/` - VirtFusion
+- `provisioning-modules/convoy/` - Convoy panel
+
+**Note:** All extensions are currently placeholder implementations with TODO comments. They need full API integration before use in production.
+
+Study the Stripe extension as the most complete example to understand how to build your own extensions.

@@ -116,12 +116,12 @@ Responsibilities:
 
 ### Example: Stripe Payment Gateway
 
-See: `extensions/stripe-gateway/Extension.php`
+See: `extensions/payment-gateways/stripe/Extension.php`
 
 ```php
 <?php
 
-namespace Extensions\StripeGateway;
+namespace Extensions\PaymentGateways\Stripe;
 
 use App\Extensions\Extension;
 use App\Extensions\Contracts\PaymentGatewayInterface;
@@ -166,6 +166,8 @@ class Extension extends \App\Extensions\Extension implements PaymentGatewayInter
     // Implement other required methods...
 }
 ```
+
+**Note:** The namespace follows the category-based convention: `Extensions\PaymentGateways\Stripe`
 
 ### Configuration Fields
 
@@ -253,31 +255,66 @@ class Extension extends \App\Extensions\Extension implements ProvisioningModuleI
 
 ## Extension Directory Structure
 
+Extensions are organized by category in the `extensions/` directory:
+
 ```
 extensions/
-└── your-extension/
-    ├── Extension.php              # Main extension class (REQUIRED)
-    ├── composer.json              # Composer dependencies (optional)
-    ├── config/
-    │   └── config.php             # Configuration file
-    ├── database/
-    │   ├── migrations/            # Database migrations
-    │   └── seeders/               # Database seeders
-    ├── routes/
-    │   ├── web.php                # Web routes
-    │   └── api.php                # API routes
-    ├── views/                     # Blade templates
-    │   └── settings.blade.php
-    ├── assets/                    # Public assets
-    │   ├── css/
-    │   ├── js/
-    │   └── images/
-    ├── lang/                      # Translations
-    │   ├── en/
-    │   └── id/
-    ├── tests/                     # Extension tests
-    └── README.md                  # Documentation
+├── payment-gateways/              # Payment gateway extensions
+│   ├── stripe/
+│   │   ├── Extension.php          # Main extension class (REQUIRED)
+│   │   ├── composer.json          # Composer dependencies (optional)
+│   │   ├── routes/
+│   │   │   └── web.php            # Custom routes
+│   │   ├── views/                 # Blade templates
+│   │   ├── assets/                # Public assets (logo, etc.)
+│   │   │   └── logo.png
+│   │   └── README.md              # Documentation
+│   ├── midtrans/
+│   ├── xendit/
+│   ├── duitku/
+│   ├── tripay/
+│   ├── paypal/
+│   └── cryptomus/
+│
+└── provisioning-modules/          # Provisioning module extensions
+    ├── pterodactyl/
+    │   ├── Extension.php          # Main extension class (REQUIRED)
+    │   ├── composer.json          # Composer dependencies (optional)
+    │   ├── config/
+    │   │   └── config.php         # Configuration file
+    │   ├── database/
+    │   │   └── migrations/        # Database migrations
+    │   ├── routes/
+    │   │   ├── web.php            # Web routes
+    │   │   └── api.php            # API routes
+    │   ├── views/                 # Blade templates
+    │   │   └── settings.blade.php
+    │   ├── assets/                # Public assets
+    │   │   ├── css/
+    │   │   ├── js/
+    │   │   └── images/
+    │   ├── lang/                  # Translations
+    │   │   ├── en/
+    │   │   └── id/
+    │   └── README.md              # Documentation
+    ├── proxmox/
+    ├── virtualizor/
+    ├── virtfusion/
+    └── convoy/
 ```
+
+### Category-Based Namespace Convention
+
+Extensions use namespaces based on their category:
+
+- **Payment Gateways**: `Extensions\PaymentGateways\{ExtensionName}`
+- **Provisioning Modules**: `Extensions\ProvisioningModules\{ExtensionName}`
+
+**Examples:**
+- `extensions/payment-gateways/stripe/` → `Extensions\PaymentGateways\Stripe`
+- `extensions/provisioning-modules/pterodactyl/` → `Extensions\ProvisioningModules\Pterodactyl`
+
+The ExtensionManager automatically converts folder names to proper namespaces during discovery.
 
 ## Using the Extension Manager
 
@@ -376,14 +413,17 @@ Configuration is automatically encrypted if the field is marked as `password` ty
 ## Extension Lifecycle
 
 1. **Discovery**: `ExtensionManager::discoverExtensions()`
-   - Scans `extensions/` directory
-   - Finds `Extension.php` files
+   - Scans extension categories (`payment-gateways/`, `provisioning-modules/`)
+   - Discovers subdirectories in each category
+   - Finds `Extension.php` files in each extension
    - Validates class structure
+   - Converts folder names to proper namespaces
 
 2. **Loading**: `loadExtension()`
    - Requires Extension.php file
+   - Builds category-based namespace (`Extensions\PaymentGateways\Stripe`)
    - Instantiates extension class
-   - Verifies interface implementation
+   - Verifies interface implementation (PaymentGatewayInterface or ProvisioningModuleInterface)
    - Checks enabled status
 
 3. **Registration**: `Extension::register()`
@@ -520,23 +560,50 @@ To publish your extension for others:
 ### ExtensionManager Methods
 
 ```php
-// Get all extensions
+// Get all extensions (flattened from all categories)
 $extensions = $manager->getExtensions();
 
-// Get specific extension
-$extension = $manager->getExtension('extension-id');
+// Get all extensions by category (returns associative array)
+$allExtensions = $manager->getAllExtensions();
+// Returns: ['payment-gateways' => [...], 'provisioning-modules' => [...]]
 
-// Get payment gateways
+// Get extensions by category
+$paymentGateways = $manager->getExtensionsByCategory('payment-gateways');
+$provisioningModules = $manager->getExtensionsByCategory('provisioning-modules');
+
+// Get specific extension (auto-search all categories)
+$extension = $manager->getExtension('stripe');
+
+// Get specific extension by category (faster, recommended)
+$stripe = $manager->getExtension('stripe', 'payment-gateways');
+$pterodactyl = $manager->getExtension('pterodactyl', 'provisioning-modules');
+
+// Get payment gateways (quick access by interface)
 $gateways = $manager->getPaymentGateways();
-$gateway = $manager->getPaymentGateway('gateway-id');
+$gateway = $manager->getPaymentGateway('stripe');
 
-// Get provisioning modules
+// Get provisioning modules (quick access by interface)
 $modules = $manager->getProvisioningModules();
-$module = $manager->getProvisioningModule('module-id');
+$module = $manager->getProvisioningModule('pterodactyl');
 
-// Install/uninstall
-$manager->installExtension('extension-id');
-$manager->uninstallExtension('extension-id');
+// Install/uninstall with category
+$manager->installExtension('stripe', 'payment-gateways');
+$manager->uninstallExtension('pterodactyl', 'provisioning-modules');
+
+// Install/uninstall without category (auto-search)
+$manager->installExtension('stripe');  // slower, searches all categories
+
+// Get statistics
+$stats = $manager->getStatistics();
+// Returns: [
+//   'total_extensions' => 12,
+//   'payment_gateways' => 7,
+//   'provisioning_modules' => 5,
+//   'by_category' => [
+//     'payment-gateways' => 7,
+//     'provisioning-modules' => 5
+//   ]
+// ]
 
 // Reload extensions
 $manager->reload();
@@ -578,7 +645,7 @@ We welcome extension contributions! Please:
 
 For help with the extension system:
 - Read documentation: `/extensions/README.md`
-- Review examples: `/extensions/stripe-gateway/`
+- Review examples: `/extensions/payment-gateways/stripe/` or `/extensions/provisioning-modules/pterodactyl/`
 - Check logs: `storage/logs/laravel.log`
 - Submit issues: GitHub Issues
 
