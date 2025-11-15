@@ -3,9 +3,12 @@
 A professional, full-featured billing and hosting management system built with Laravel 11. Designed to rival commercial platforms like WHMCS with enterprise-grade features, security, and automation.
 
 [![Laravel](https://img.shields.io/badge/Laravel-11.x-red.svg)](https://laravel.com)
-[![PHP](https://img.shields.io/badge/PHP-8.2+-blue.svg)](https://php.net)
+[![PHP](https://img.shields.io/badge/PHP-8.2%20|%208.3-blue.svg)](https://php.net)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Status](https://img.shields.io/badge/Status-Production Ready-success.svg)](https://github.com)
+[![Multi-Language](https://img.shields.io/badge/Multi--Language-Supported-green.svg)](LANGUAGE_SYSTEM.md)
+[![API](https://img.shields.io/badge/REST%20API-Available-blue.svg)](API_DOCUMENTATION.md)
+[![Extensions](https://img.shields.io/badge/Plugin%20System-Available-orange.svg)](EXTENSION_SYSTEM.md)
 
 ## 📋 Table of Contents
 
@@ -57,29 +60,61 @@ A professional, full-featured billing and hosting management system built with L
 - **Client Growth** - Acquisition and retention metrics
 - **CSV Export** - Export data for analysis
 
+### 🌍 Multi-Language System
+- **Translation Support** - English & Indonesian included (easily add more)
+- **Language Switcher** - User-selectable language preference
+- **Database Storage** - Language preference saved per user
+- **Comprehensive Coverage** - 10 translation files covering all areas
+- **Developer Friendly** - Simple `__()` helper for translations
+- **Documentation** - Full guide: [LANGUAGE_SYSTEM.md](LANGUAGE_SYSTEM.md)
+
+### 🔌 Extension/Plugin System
+- **Payment Gateways** - Add custom payment processors
+- **Provisioning Modules** - Automate server provisioning
+- **Auto-Discovery** - Automatic extension loading from `extensions/` folder
+- **Configuration UI** - Admin panel for extension settings
+- **Hook System** - Listen to system events
+- **Sample Extension** - Stripe gateway implementation included
+- **Documentation** - Full guide: [EXTENSION_SYSTEM.md](EXTENSION_SYSTEM.md)
+
+### 🚀 REST API System
+- **Token Authentication** - Laravel Sanctum integration
+- **Ability-Based Auth** - Role-specific permissions
+- **Rate Limiting** - 60 requests/minute
+- **API Resources** - Clean JSON responses
+- **Comprehensive Endpoints** - Services, Invoices, Tickets, Admin Stats
+- **Code Examples** - cURL, PHP, JavaScript, Python
+- **Documentation** - Full guide: [API_DOCUMENTATION.md](API_DOCUMENTATION.md)
+
 ## 📦 Requirements
 
-- **PHP:** 8.2 or higher
+- **PHP:** 8.2 or 8.3 (recommended) ⚠️ **PHP 8.1 NOT supported** (Laravel 11 requirement)
 - **Composer:** 2.x
-- **Node.js:** 18.x or higher
-- **NPM:** 9.x or higher
+- **Node.js:** 18.x or higher (optional, for asset compilation)
+- **NPM:** 9.x or higher (optional)
 - **Database:** MySQL 8.0+ / PostgreSQL 13+ / SQLite 3+
 - **Web Server:** Apache / Nginx
 - **PHP Extensions:**
-  - BCMath
-  - Ctype
-  - Fileinfo
-  - JSON
-  - Mbstring
-  - OpenSSL
-  - PDO
-  - Tokenizer
-  - XML
-  - cURL
+  - BCMath, Ctype, Fileinfo, JSON, Mbstring, OpenSSL, PDO, Tokenizer, XML, cURL
+  - Recommended: opcache, redis, imagick, exif, intl, zip, gd
 
 ## 🚀 Installation
 
-### Quick Install (Recommended)
+### For Ubuntu + aaPanel Users (Recommended)
+
+**Quick Start**: See [QUICK_START.md](QUICK_START.md)
+
+**Complete Guide**: See [AAPANEL_INSTALLATION.md](AAPANEL_INSTALLATION.md)
+
+Step-by-step guide for deploying to production with:
+- aaPanel installation
+- Nginx configuration
+- SSL setup with Let's Encrypt
+- Queue workers with Supervisor
+- Cron jobs
+- Performance optimization
+
+### Manual Installation
 
 1. **Clone the repository**
    ```bash
