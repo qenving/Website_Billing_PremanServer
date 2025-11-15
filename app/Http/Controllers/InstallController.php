@@ -162,7 +162,7 @@ class InstallController extends Controller
     public function complete()
     {
         // Mark installation as complete
-        $this->updateEnv(['APP_INSTALLED' => 'true']);
+        $this->updateEnv(['HBM_INSTALLED' => 'true']);
 
         return view('install.complete');
     }
