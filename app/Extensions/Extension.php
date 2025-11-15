@@ -50,15 +50,27 @@ abstract class Extension implements ExtensionInterface
      */
     protected function loadConfig(): void
     {
-        $configKey = 'extension_' . $this->getExtensionId();
-        $savedConfig = Setting::get($configKey, []);
+        try {
+            // Check if settings table exists before querying
+            if (!\Schema::hasTable('settings')) {
+                return;
+            }
 
-        if (is_array($savedConfig)) {
-            $this->config = array_merge($this->config, $savedConfig);
+            $configKey = 'extension_' . $this->getExtensionId();
+            $savedConfig = Setting::get($configKey, []);
+
+            if (is_array($savedConfig)) {
+                $this->config = array_merge($this->config, $savedConfig);
+            }
+
+            // Load enabled status
+            $this->enabled = Setting::get($configKey . '_enabled', true);
+
+        } catch (\Exception $e) {
+            // Silently fail if database is not ready
+            // Extensions will use default config
+            \Log::warning("Failed to load extension config: " . $e->getMessage());
         }
-
-        // Load enabled status
-        $this->enabled = Setting::get($configKey . '_enabled', true);
     }
 
     /**
@@ -66,8 +78,19 @@ abstract class Extension implements ExtensionInterface
      */
     protected function saveConfig(): void
     {
-        $configKey = 'extension_' . $this->getExtensionId();
-        Setting::set($configKey, $this->config);
+        try {
+            // Check if settings table exists before querying
+            if (!\Schema::hasTable('settings')) {
+                \Log::warning("Cannot save extension config: settings table does not exist");
+                return;
+            }
+
+            $configKey = 'extension_' . $this->getExtensionId();
+            Setting::set($configKey, $this->config);
+
+        } catch (\Exception $e) {
+            \Log::error("Failed to save extension config: " . $e->getMessage());
+        }
     }
 
     /**
@@ -84,7 +107,14 @@ abstract class Extension implements ExtensionInterface
     public function enable(): void
     {
         $this->enabled = true;
-        Setting::set('extension_' . $this->getExtensionId() . '_enabled', true);
+
+        try {
+            if (\Schema::hasTable('settings')) {
+                Setting::set('extension_' . $this->getExtensionId() . '_enabled', true);
+            }
+        } catch (\Exception $e) {
+            \Log::error("Failed to enable extension: " . $e->getMessage());
+        }
     }
 
     /**
@@ -93,7 +123,14 @@ abstract class Extension implements ExtensionInterface
     public function disable(): void
     {
         $this->enabled = false;
-        Setting::set('extension_' . $this->getExtensionId() . '_enabled', false);
+
+        try {
+            if (\Schema::hasTable('settings')) {
+                Setting::set('extension_' . $this->getExtensionId() . '_enabled', false);
+            }
+        } catch (\Exception $e) {
+            \Log::error("Failed to disable extension: " . $e->getMessage());
+        }
     }
 
     /**
@@ -172,8 +209,14 @@ abstract class Extension implements ExtensionInterface
     {
         $this->disable();
 
-        // Remove configuration
-        Setting::where('key', 'like', 'extension_' . $this->getExtensionId() . '%')->delete();
+        try {
+            // Remove configuration
+            if (\Schema::hasTable('settings')) {
+                Setting::where('key', 'like', 'extension_' . $this->getExtensionId() . '%')->delete();
+            }
+        } catch (\Exception $e) {
+            \Log::error("Failed to remove extension config: " . $e->getMessage());
+        }
 
         return true;
     }

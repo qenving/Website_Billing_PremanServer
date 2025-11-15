@@ -17,25 +17,27 @@ interface ProvisioningModuleInterface extends ExtensionInterface
     public function getDisplayName(): string;
 
     /**
-     * Get configuration fields for server settings
+     * Get configuration fields for admin settings
      * Returns array of field definitions
      */
-    public function getServerConfigFields(): array;
+    public function getConfigFields(): array;
 
     /**
-     * Get configuration fields for product/service settings
-     * Returns array of field definitions
+     * Get module logo URL
      */
-    public function getProductConfigFields(): array;
+    public function getLogo(): ?string;
 
     /**
      * Create/provision a new service
      * Returns array with:
-     * - success: boolean
+     * - status: 'success' or 'failed'
      * - message: string
-     * - service_data: array (username, password, server_ip, etc.)
+     * - remote_id: remote service identifier
+     * - username: service username
+     * - password: service password
+     * - additional_data: array (server details, etc.)
      */
-    public function createAccount(Service $service): array;
+    public function createAccount(Service $service, array $params): array;
 
     /**
      * Suspend service
@@ -53,33 +55,19 @@ interface ProvisioningModuleInterface extends ExtensionInterface
     public function terminateAccount(Service $service): array;
 
     /**
-     * Change service password
-     */
-    public function changePassword(Service $service, string $newPassword): array;
-
-    /**
      * Upgrade/downgrade service
      */
-    public function changePackage(Service $service, array $newPackageConfig): array;
+    public function changePackage(Service $service, array $params): array;
 
     /**
-     * Get service usage statistics
-     * Returns array with disk, bandwidth, etc.
+     * Get service account information and statistics
+     * Returns array with status, usage stats, etc.
      */
-    public function getUsageStats(Service $service): array;
+    public function getAccountInfo(Service $service): array;
 
     /**
-     * Test connection to server
+     * Test connection to provisioning server
+     * Returns array with status and message
      */
-    public function testConnection(array $serverConfig): array;
-
-    /**
-     * Get available packages from server
-     */
-    public function getAvailablePackages(array $serverConfig): array;
-
-    /**
-     * Check if service exists on server
-     */
-    public function accountExists(Service $service): bool;
+    public function testConnection(): array;
 }
