@@ -100,54 +100,54 @@ A professional, full-featured billing and hosting management system built with L
 
 ## 🚀 Installation
 
-### For Ubuntu + aaPanel Users (Recommended)
+### ⚡ One-Command Installation (RECOMMENDED - Takes 5 Minutes!)
 
-**Quick Start**: See [QUICK_START.md](QUICK_START.md)
+**The Easiest Way**:
 
-**Complete Guide**: See [AAPANEL_INSTALLATION.md](AAPANEL_INSTALLATION.md)
+```bash
+# 1. Upload project files to your server
 
-Step-by-step guide for deploying to production with:
-- aaPanel installation
-- Nginx configuration
-- SSL setup with Let's Encrypt
-- Queue workers with Supervisor
-- Cron jobs
-- Performance optimization
+# 2. Run automatic installer
+cd /www/wwwroot/YOUR_DOMAIN
+sudo bash install.sh
 
-### Manual Installation
+# 3. Setup Nginx in aaPanel (point root to /public)
+# 4. Visit http://YOUR_DOMAIN/install
+# Done! 🎉
+```
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/yourusername/hbm-billing.git
-   cd hbm-billing
-   ```
+The installer automatically handles:
+- ✅ PHP version & extensions check
+- ✅ Composer installation/upgrade
+- ✅ All directory creation
+- ✅ Correct permissions (no more 403!)
+- ✅ Dependencies installation
+- ✅ APP_KEY generation
+- ✅ Everything configured!
 
-2. **Install dependencies**
-   ```bash
-   composer install
-   npm install && npm run build
-   ```
+**Time**: 5-10 minutes (mostly waiting for Composer)
 
-3. **Setup environment**
-   ```bash
-   cp .env.example .env
-   php artisan key:generate
-   ```
+---
 
-4. **Run installation wizard**
-   ```bash
-   # Open browser and navigate to:
-   http://your-domain.com/install
-   ```
+### 📚 Installation Guides
 
-5. **Follow the 5-step wizard:**
-   - ✅ Requirements check
-   - ✅ Database configuration
-   - ✅ Admin user creation
-   - ✅ SMTP configuration
-   - ✅ Complete!
+| Guide | Use Case | Time |
+|-------|----------|------|
+| **[SETUP.md](SETUP.md)** | ⭐ **START HERE** - Automatic installation | 5-10 min |
+| [QUICK_START.md](QUICK_START.md) | Quick reference & commands | Reference |
+| [AAPANEL_INSTALLATION.md](AAPANEL_INSTALLATION.md) | Detailed manual step-by-step | 1-2 hours |
 
-### Manual Installation
+### 🛠️ Helper Scripts
+
+| Script | Purpose |
+|--------|---------|
+| `install.sh` | **Main installer** - Automatic setup |
+| `check-requirements.sh` | Check if server is ready before installing |
+| `fix-permissions.sh` | Quick fix for permission/403 errors |
+
+---
+
+### 🔧 Manual Installation (Advanced Users)
 
 If you prefer manual setup:
 
