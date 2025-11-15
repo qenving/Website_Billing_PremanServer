@@ -2,281 +2,413 @@
 
 namespace App\Http\Controllers\Install;
 
+use App\Helpers\EnvWriter;
 use App\Http\Controllers\Controller;
+use App\Models\Role;
+use App\Models\User;
+use App\Services\DatabaseInstaller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Validator;
 
 class InstallController extends Controller
 {
-    public function index()
-    {
-        // Check if already installed
-        if (config('hbm.installed')) {
-            return redirect('/');
-        }
+    protected DatabaseInstaller $databaseInstaller;
 
-        return view('install.welcome');
+    public function __construct()
+    {
+        $this->databaseInstaller = new DatabaseInstaller();
     }
 
+    /**
+     * Step 1: Check server requirements
+     */
     public function requirements()
     {
-        $requirements = [
-            'php_version' => [
-                'name' => 'PHP Version >= 8.2',
-                'check' => version_compare(PHP_VERSION, '8.2.0', '>='),
-                'value' => PHP_VERSION,
-            ],
-            'openssl' => [
-                'name' => 'OpenSSL Extension',
-                'check' => extension_loaded('openssl'),
-                'value' => extension_loaded('openssl') ? 'Enabled' : 'Disabled',
-            ],
-            'pdo' => [
-                'name' => 'PDO Extension',
-                'check' => extension_loaded('pdo'),
-                'value' => extension_loaded('pdo') ? 'Enabled' : 'Disabled',
-            ],
-            'mbstring' => [
-                'name' => 'Mbstring Extension',
-                'check' => extension_loaded('mbstring'),
-                'value' => extension_loaded('mbstring') ? 'Enabled' : 'Disabled',
-            ],
-            'tokenizer' => [
-                'name' => 'Tokenizer Extension',
-                'check' => extension_loaded('tokenizer'),
-                'value' => extension_loaded('tokenizer') ? 'Enabled' : 'Disabled',
-            ],
-            'json' => [
-                'name' => 'JSON Extension',
-                'check' => extension_loaded('json'),
-                'value' => extension_loaded('json') ? 'Enabled' : 'Disabled',
-            ],
-            'curl' => [
-                'name' => 'cURL Extension',
-                'check' => extension_loaded('curl'),
-                'value' => extension_loaded('curl') ? 'Enabled' : 'Disabled',
-            ],
-            'zip' => [
-                'name' => 'ZIP Extension',
-                'check' => extension_loaded('zip'),
-                'value' => extension_loaded('zip') ? 'Enabled' : 'Disabled',
-            ],
-        ];
-
-        $permissions = [
-            'storage' => [
-                'name' => 'storage/',
-                'check' => is_writable(storage_path()),
-                'path' => storage_path(),
-            ],
-            'bootstrap_cache' => [
-                'name' => 'bootstrap/cache/',
-                'check' => is_writable(base_path('bootstrap/cache')),
-                'path' => base_path('bootstrap/cache'),
-            ],
-            'env' => [
-                'name' => '.env',
-                'check' => is_writable(base_path('.env')),
-                'path' => base_path('.env'),
-            ],
-        ];
-
-        return view('install.requirements', compact('requirements', 'permissions'));
+        $requirements = $this->checkRequirements();
+        return view('install.requirements', compact('requirements'));
     }
 
-    public function database()
+    /**
+     * Step 2: Select database mode (Local or Remote)
+     */
+    public function databaseMode()
     {
-        return view('install.database');
+        return view('install.database-mode');
     }
 
-    public function databaseStore(Request $request)
+    /**
+     * Store selected database mode
+     */
+    public function storeDatabaseMode(Request $request)
     {
         $request->validate([
-            'db_host' => 'required',
-            'db_port' => 'required|numeric',
-            'db_database' => 'required',
-            'db_username' => 'required',
-            'db_password' => 'nullable',
+            'mode' => 'required|in:local,remote'
         ]);
 
-        // Test database connection
-        try {
-            $pdo = new \PDO(
-                "mysql:host={$request->db_host};port={$request->db_port};dbname={$request->db_database}",
-                $request->db_username,
-                $request->db_password
-            );
-        } catch (\Exception $e) {
-            return back()->withInput()->with('error', 'Database connection failed: ' . $e->getMessage());
+        session(['db_mode' => $request->mode]);
+
+        return redirect()->route('install.database.config');
+    }
+
+    /**
+     * Step 3: Database configuration form
+     */
+    public function databaseConfig()
+    {
+        $mode = session('db_mode', 'remote');
+        return view('install.database-config', compact('mode'));
+    }
+
+    /**
+     * AJAX: Test database connection
+     */
+    public function testDatabase(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'host' => 'required|string',
+            'port' => 'required|integer',
+            'database' => 'required|string',
+            'username' => 'required|string',
+            'password' => 'nullable|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed: ' . $validator->errors()->first()
+            ]);
         }
 
-        // Update .env file first
-        $this->updateEnvFile([
-            'DB_HOST' => $request->db_host,
-            'DB_PORT' => $request->db_port,
-            'DB_DATABASE' => $request->db_database,
-            'DB_USERNAME' => $request->db_username,
-            'DB_PASSWORD' => $request->db_password,
-        ]);
+        $config = [
+            'host' => $request->host,
+            'port' => $request->port,
+            'database' => $request->database,
+            'username' => $request->username,
+            'password' => $request->password ?? '',
+        ];
 
-        // Reload database configuration
+        $result = $this->databaseInstaller->testConnection($config);
+
+        return response()->json($result);
+    }
+
+    /**
+     * Install database (create DB for local, validate for remote)
+     */
+    public function installDatabase(Request $request)
+    {
+        $mode = session('db_mode', 'remote');
+
+        $rules = [
+            'host' => 'required|string',
+            'port' => 'required|integer',
+            'database' => 'required|string',
+            'username' => 'required|string',
+            'password' => 'nullable|string',
+        ];
+
+        // Add root credentials validation for local mode
+        if ($mode === 'local') {
+            $rules['root_username'] = 'required|string';
+            $rules['root_password'] = 'nullable|string';
+        }
+
+        $validator = Validator::make($request->all(), $rules);
+
+        if ($validator->fails()) {
+            return back()->withErrors($validator)->withInput();
+        }
+
+        $config = [
+            'host' => $request->host,
+            'port' => $request->port,
+            'database' => $request->database,
+            'username' => $request->username,
+            'password' => $request->password ?? '',
+        ];
+
+        // Install based on mode
+        if ($mode === 'local') {
+            $config['root_username'] = $request->root_username;
+            $config['root_password'] = $request->root_password ?? '';
+            $result = $this->databaseInstaller->installLocal($config);
+        } else {
+            $result = $this->databaseInstaller->installRemote($config);
+        }
+
+        if (!$result['success']) {
+            return back()->with('error', $result['message'])->withInput();
+        }
+
+        // Update .env file with database credentials
+        $envData = [
+            'DB_CONNECTION' => 'mysql',
+            'DB_HOST' => $config['host'],
+            'DB_PORT' => $config['port'],
+            'DB_DATABASE' => $config['database'],
+            'DB_USERNAME' => $config['username'],
+            'DB_PASSWORD' => $config['password'],
+        ];
+
+        // Generate APP_KEY if not exists
+        if (!env('APP_KEY')) {
+            $envData['APP_KEY'] = EnvWriter::generateAppKey();
+        }
+
+        EnvWriter::updateEnv($envData);
+
+        // Clear config cache to use new database settings
         Artisan::call('config:clear');
-        DB::purge('mysql');
-        DB::reconnect('mysql');
 
-        // Check if database has existing tables
+        // Run migrations
+        $migrationResult = $this->databaseInstaller->runMigrations();
+
+        if (!$migrationResult['success']) {
+            return back()->with('error', 'Database configured but migration failed: ' . $migrationResult['message'])->withInput();
+        }
+
+        // Store database config in session for next step
+        session(['db_configured' => true]);
+
+        return redirect()->route('install.owner')->with('success', $result['message']);
+    }
+
+    /**
+     * Step 4: Create OWNER account
+     */
+    public function owner()
+    {
+        // Check if database is configured
+        if (!session('db_configured')) {
+            return redirect()->route('install.database.config')
+                ->with('error', 'Please configure database first');
+        }
+
+        return view('install.owner');
+    }
+
+    /**
+     * Create OWNER account
+     */
+    public function createOwner(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|max:255|unique:users,email',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        if ($validator->fails()) {
+            return back()->withErrors($validator)->withInput();
+        }
+
         try {
-            $tables = DB::select('SHOW TABLES');
-            if (count($tables) > 0) {
-                // Store database credentials in session for confirmation page
-                session([
-                    'install_db_credentials' => $request->only(['db_host', 'db_port', 'db_database', 'db_username', 'db_password']),
-                    'install_existing_tables' => count($tables),
-                ]);
-                return redirect()->route('install.database.confirm');
-            }
-        } catch (\Exception $e) {
-            // If we can't check tables, proceed anyway
-        }
+            // Create OWNER role if not exists
+            $ownerRole = Role::firstOrCreate(
+                ['slug' => 'owner'],
+                [
+                    'name' => 'Owner',
+                    'description' => 'System Owner - Highest level access with complete control',
+                    'is_protected' => true,
+                    'permissions' => [
+                        'users' => ['view', 'create', 'edit', 'delete'],
+                        'roles' => ['view', 'create', 'edit', 'delete'],
+                        'settings' => ['view', 'edit'],
+                        'extensions' => ['view', 'install', 'configure', 'uninstall'],
+                        'products' => ['view', 'create', 'edit', 'delete'],
+                        'orders' => ['view', 'create', 'edit', 'delete', 'refund'],
+                        'invoices' => ['view', 'create', 'edit', 'delete'],
+                        'tickets' => ['view', 'reply', 'close', 'delete'],
+                        'reports' => ['view', 'export'],
+                        'logs' => ['view', 'delete'],
+                    ]
+                ]
+            );
 
-        // No existing tables, proceed with migration
-        return $this->runMigrations();
-    }
+            // Create OWNER user
+            $owner = User::create([
+                'name' => $request->name,
+                'email' => $request->email,
+                'password' => Hash::make($request->password),
+                'role_id' => $ownerRole->id,
+                'is_owner' => true,
+                'email_verified_at' => now(),
+            ]);
 
-    public function databaseConfirm()
-    {
-        if (!session('install_db_credentials')) {
-            return redirect()->route('install.database');
-        }
+            // Mark installation as complete
+            File::put(storage_path('installed'), json_encode([
+                'installed_at' => now()->toDateTimeString(),
+                'version' => config('app.version', '1.0.0'),
+                'owner_email' => $owner->email,
+            ]));
 
-        $tableCount = session('install_existing_tables', 0);
-        return view('install.database-confirm', compact('tableCount'));
-    }
+            // Update .env with installation flag
+            EnvWriter::updateEnv([
+                'HBM_INSTALLED' => 'true',
+                'APP_ENV' => 'production',
+                'APP_DEBUG' => 'false',
+            ]);
 
-    public function databaseReset(Request $request)
-    {
-        if (!session('install_db_credentials')) {
-            return redirect()->route('install.database')->with('error', 'Session expired. Please try again.');
-        }
-
-        $action = $request->input('action');
-
-        if ($action === 'cancel') {
-            session()->forget(['install_db_credentials', 'install_existing_tables']);
-            return redirect()->route('install.database');
-        }
-
-        if ($action === 'proceed') {
-            // User confirmed, drop all tables and reinstall
-            return $this->runMigrations(true);
-        }
-
-        return back()->with('error', 'Invalid action.');
-    }
-
-    protected function runMigrations($dropExisting = false)
-    {
-        try {
-            // Clear all caches first
+            // Clear all caches
             Artisan::call('config:clear');
             Artisan::call('cache:clear');
             Artisan::call('route:clear');
             Artisan::call('view:clear');
 
-            if ($dropExisting) {
-                // Use migrate:fresh to drop all tables and recreate
-                $exitCode = Artisan::call('migrate:fresh', ['--force' => true, '--seed' => true]);
+            // Store owner info in session
+            session(['owner_created' => true, 'owner_email' => $owner->email]);
 
-                // Check if migration was successful
-                if ($exitCode !== 0) {
-                    $output = Artisan::output();
-                    throw new \Exception('Migration command failed: ' . $output);
-                }
-            } else {
-                // Normal migration
-                $exitCode = Artisan::call('migrate', ['--force' => true]);
-                if ($exitCode !== 0) {
-                    $output = Artisan::output();
-                    throw new \Exception('Migration command failed: ' . $output);
-                }
-
-                Artisan::call('db:seed', ['--force' => true]);
-            }
-
-            // Clear session data
-            session()->forget(['install_db_credentials', 'install_existing_tables']);
-
-            return redirect()->route('install.admin')->with('success', 'Database installed successfully!');
+            return redirect()->route('install.finish');
         } catch (\Exception $e) {
-            \Log::error('Installation migration failed', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'drop_existing' => $dropExisting
-            ]);
-
-            return back()->with('error', 'Migration failed: ' . $e->getMessage());
+            return back()->with('error', 'Failed to create owner account: ' . $e->getMessage())->withInput();
         }
     }
 
-    public function admin()
+    /**
+     * Step 5: Installation complete
+     */
+    public function finish()
     {
-        return view('install.admin');
-    }
-
-    public function adminStore(Request $request)
-    {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email',
-            'password' => 'required|min:8|confirmed',
-        ]);
-
-        // Create super admin user
-        $user = \App\Models\User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => bcrypt($request->password),
-            'is_active' => true,
-        ]);
-
-        // Assign super admin role
-        $role = \App\Models\Role::where('name', 'super_admin')->first();
-        if ($role) {
-            $user->role_id = $role->id;
-            $user->save();
+        if (!session('owner_created')) {
+            return redirect()->route('install.owner')
+                ->with('error', 'Please create owner account first');
         }
 
-        return redirect()->route('install.complete');
+        $ownerEmail = session('owner_email');
+
+        // Clear installation session data
+        session()->forget(['db_mode', 'db_configured', 'owner_created', 'owner_email']);
+
+        return view('install.finish', compact('ownerEmail'));
     }
 
-    public function complete()
+    /**
+     * Check server requirements
+     */
+    private function checkRequirements(): array
     {
-        // Mark as installed
-        $this->updateEnvFile(['HBM_INSTALLED' => 'true']);
+        $requirements = [
+            'php_version' => [
+                'name' => 'PHP Version >= 8.2',
+                'required' => true,
+                'status' => version_compare(PHP_VERSION, '8.2.0', '>='),
+                'current' => PHP_VERSION,
+            ],
+            'extensions' => [
+                'openssl' => [
+                    'name' => 'OpenSSL Extension',
+                    'required' => true,
+                    'status' => extension_loaded('openssl'),
+                ],
+                'pdo' => [
+                    'name' => 'PDO Extension',
+                    'required' => true,
+                    'status' => extension_loaded('pdo'),
+                ],
+                'pdo_mysql' => [
+                    'name' => 'PDO MySQL Extension',
+                    'required' => true,
+                    'status' => extension_loaded('pdo_mysql'),
+                ],
+                'mbstring' => [
+                    'name' => 'Mbstring Extension',
+                    'required' => true,
+                    'status' => extension_loaded('mbstring'),
+                ],
+                'tokenizer' => [
+                    'name' => 'Tokenizer Extension',
+                    'required' => true,
+                    'status' => extension_loaded('tokenizer'),
+                ],
+                'xml' => [
+                    'name' => 'XML Extension',
+                    'required' => true,
+                    'status' => extension_loaded('xml'),
+                ],
+                'ctype' => [
+                    'name' => 'Ctype Extension',
+                    'required' => true,
+                    'status' => extension_loaded('ctype'),
+                ],
+                'json' => [
+                    'name' => 'JSON Extension',
+                    'required' => true,
+                    'status' => extension_loaded('json'),
+                ],
+                'bcmath' => [
+                    'name' => 'BCMath Extension',
+                    'required' => true,
+                    'status' => extension_loaded('bcmath'),
+                ],
+                'curl' => [
+                    'name' => 'cURL Extension',
+                    'required' => true,
+                    'status' => extension_loaded('curl'),
+                ],
+                'fileinfo' => [
+                    'name' => 'Fileinfo Extension',
+                    'required' => true,
+                    'status' => extension_loaded('fileinfo'),
+                ],
+                'gd' => [
+                    'name' => 'GD Extension',
+                    'required' => false,
+                    'status' => extension_loaded('gd'),
+                ],
+                'zip' => [
+                    'name' => 'ZIP Extension',
+                    'required' => false,
+                    'status' => extension_loaded('zip'),
+                ],
+            ],
+            'permissions' => [
+                'storage' => [
+                    'name' => 'storage/',
+                    'required' => true,
+                    'status' => is_writable(storage_path()),
+                    'path' => storage_path(),
+                ],
+                'bootstrap_cache' => [
+                    'name' => 'bootstrap/cache/',
+                    'required' => true,
+                    'status' => is_writable(base_path('bootstrap/cache')),
+                    'path' => base_path('bootstrap/cache'),
+                ],
+                'env' => [
+                    'name' => '.env file',
+                    'required' => true,
+                    'status' => File::exists(base_path('.env')) ? is_writable(base_path('.env')) : is_writable(base_path()),
+                    'path' => base_path('.env'),
+                ],
+            ],
+        ];
 
-        Artisan::call('config:clear');
-        Artisan::call('cache:clear');
+        // Calculate overall status
+        $allPassed = true;
 
-        return view('install.complete');
-    }
+        if (!$requirements['php_version']['status']) {
+            $allPassed = false;
+        }
 
-    protected function updateEnvFile(array $data)
-    {
-        $envFile = base_path('.env');
-        $content = File::get($envFile);
-
-        foreach ($data as $key => $value) {
-            $value = str_replace('"', '\"', $value);
-
-            if (preg_match("/^{$key}=/m", $content)) {
-                $content = preg_replace("/^{$key}=.*/m", "{$key}=\"{$value}\"", $content);
-            } else {
-                $content .= "\n{$key}=\"{$value}\"";
+        foreach ($requirements['extensions'] as $ext) {
+            if ($ext['required'] && !$ext['status']) {
+                $allPassed = false;
+                break;
             }
         }
 
-        File::put($envFile, $content);
+        foreach ($requirements['permissions'] as $perm) {
+            if ($perm['required'] && !$perm['status']) {
+                $allPassed = false;
+                break;
+            }
+        }
+
+        $requirements['all_passed'] = $allPassed;
+
+        return $requirements;
     }
 }

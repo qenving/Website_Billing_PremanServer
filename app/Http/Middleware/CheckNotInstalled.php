@@ -7,24 +7,19 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
 use Symfony\Component\HttpFoundation\Response;
 
-class CheckInstallation
+class CheckNotInstalled
 {
     /**
      * Handle an incoming request.
-     * Redirect to installer if not installed.
+     * Block installer routes if already installed.
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // Skip check for install routes
-        if ($request->is('install') || $request->is('install/*')) {
-            return $next($request);
-        }
-
         $lockFile = storage_path('installed');
 
-        // If NOT installed, redirect to installer
-        if (!File::exists($lockFile)) {
-            return redirect('/install');
+        // If already installed, redirect to login
+        if (File::exists($lockFile)) {
+            return redirect('/login')->with('error', 'Application is already installed.');
         }
 
         return $next($request);
