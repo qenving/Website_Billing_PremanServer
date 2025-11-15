@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(if not exist \"bootstrap\\cache\" mkdir \"bootstrap\\cache\")"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
