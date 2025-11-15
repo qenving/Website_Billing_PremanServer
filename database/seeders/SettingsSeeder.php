@@ -70,6 +70,15 @@ class SettingsSeeder extends Seeder
                 'label' => 'Date Format',
                 'sort_order' => 7,
             ],
+            [
+                'key' => 'default_language',
+                'value' => 'en',
+                'type' => 'text',
+                'group' => 'general',
+                'label' => 'Default Language',
+                'description' => 'Default system language (en, id, etc.)',
+                'sort_order' => 8,
+            ],
 
             // Billing Settings
             [

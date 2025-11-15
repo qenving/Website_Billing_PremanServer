@@ -4,7 +4,11 @@ use App\Http\Controllers\Admin;
 use App\Http\Controllers\Auth;
 use App\Http\Controllers\Client;
 use App\Http\Controllers\InstallController;
+use App\Http\Controllers\LanguageController;
 use Illuminate\Support\Facades\Route;
+
+// Language Switching Route
+Route::get('/language/{locale}', [LanguageController::class, 'switch'])->name('language.switch');
 
 // Installation Routes
 Route::prefix('install')->middleware('guest')->group(function () {

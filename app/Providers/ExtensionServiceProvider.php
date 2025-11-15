@@ -2,7 +2,7 @@
 
 namespace App\Providers;
 
-use App\Services\ExtensionManager;
+use App\Extensions\Managers\ExtensionManager;
 use Illuminate\Support\ServiceProvider;
 
 class ExtensionServiceProvider extends ServiceProvider
@@ -12,32 +12,67 @@ class ExtensionServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Register Extension Manager as singleton
+        $this->app->singleton(ExtensionManager::class, function ($app) {
+            return new ExtensionManager();
+        });
+
+        // Create helper alias
+        $this->app->alias(ExtensionManager::class, 'extensions');
     }
 
     /**
      * Bootstrap services.
      */
-    public function boot(ExtensionManager $extensionManager): void
+    public function boot(): void
     {
-        // Auto-discover all extensions
+        // Discover and load extensions
+        $extensionManager = $this->app->make(ExtensionManager::class);
         $extensionManager->discoverExtensions();
 
-        // Manual registration (alternative to auto-discovery)
-        // Payment Gateways
-        $extensionManager->registerPaymentGateway('midtrans', \App\Extensions\Payments\MidtransGateway::class);
-        $extensionManager->registerPaymentGateway('xendit', \App\Extensions\Payments\XenditGateway::class);
-        $extensionManager->registerPaymentGateway('duitku', \App\Extensions\Payments\DuitkuGateway::class);
-        $extensionManager->registerPaymentGateway('tripay', \App\Extensions\Payments\TripayGateway::class);
-        $extensionManager->registerPaymentGateway('paypal', \App\Extensions\Payments\PaypalGateway::class);
-        $extensionManager->registerPaymentGateway('stripe', \App\Extensions\Payments\StripeGateway::class);
-        $extensionManager->registerPaymentGateway('cryptomus', \App\Extensions\Payments\CryptomusGateway::class);
+        // Register extension routes if they exist
+        $this->loadExtensionRoutes();
 
-        // Provisioning Providers
-        $extensionManager->registerProvisioningProvider('pterodactyl', \App\Extensions\Provisioning\PterodactylProvider::class);
-        $extensionManager->registerProvisioningProvider('proxmox', \App\Extensions\Provisioning\ProxmoxProvider::class);
-        $extensionManager->registerProvisioningProvider('virtualizor', \App\Extensions\Provisioning\VirtualizorProvider::class);
-        $extensionManager->registerProvisioningProvider('virtfusion', \App\Extensions\Provisioning\VirtfusionProvider::class);
-        $extensionManager->registerProvisioningProvider('convoy', \App\Extensions\Provisioning\ConvoyProvider::class);
+        // Register extension views
+        $this->loadExtensionViews();
+    }
+
+    /**
+     * Load routes from extensions
+     */
+    protected function loadExtensionRoutes(): void
+    {
+        $extensionsPath = base_path('extensions');
+
+        if (!is_dir($extensionsPath)) {
+            return;
+        }
+
+        foreach (glob($extensionsPath . '/*/routes/*.php') as $routeFile) {
+            $this->loadRoutesFrom($routeFile);
+        }
+    }
+
+    /**
+     * Load views from extensions
+     */
+    protected function loadExtensionViews(): void
+    {
+        $extensionsPath = base_path('extensions');
+
+        if (!is_dir($extensionsPath)) {
+            return;
+        }
+
+        $extensionDirs = glob($extensionsPath . '/*', GLOB_ONLYDIR);
+
+        foreach ($extensionDirs as $dir) {
+            $viewsPath = $dir . '/views';
+
+            if (is_dir($viewsPath)) {
+                $extensionName = basename($dir);
+                $this->loadViewsFrom($viewsPath, 'extension_' . $extensionName);
+            }
+        }
     }
 }
