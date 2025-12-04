@@ -324,4 +324,53 @@ class ProxmoxProvider implements ProvisioningProviderInterface
         $result->checkedAt = now();
         return $result;
     }
+
+    public function getAvailableTemplates(): array
+    {
+        try {
+            // Attempt to fetch templates/images from Proxmox cluster storages
+            $nodesResponse = Http::withHeaders([
+                'Cookie' => 'PVEAuthCookie=' . $this->ticket,
+            ])->get($this->baseUrl . '/api2/json/nodes');
+
+            if ($nodesResponse->successful()) {
+                $nodes = $nodesResponse->json('data') ?? [];
+                $items = [];
+
+                foreach ($nodes as $n) {
+                    $nodeName = $n['node'] ?? ($n['name'] ?? null);
+                    if (!$nodeName) continue;
+
+                    $storageResp = Http::withHeaders([
+                        'Cookie' => 'PVEAuthCookie=' . $this->ticket,
+                    ])->get($this->baseUrl . "/api2/json/nodes/{$nodeName}/storage");
+
+                    if ($storageResp->successful()) {
+                        $storages = $storageResp->json('data') ?? [];
+                        foreach ($storages as $s) {
+                            $contentResp = Http::withHeaders([
+                                'Cookie' => 'PVEAuthCookie=' . $this->ticket,
+                            ])->get($this->baseUrl . "/api2/json/nodes/{$nodeName}/storage/{$s['storage']}/content");
+
+                            if ($contentResp->successful()) {
+                                $items = array_merge($items, array_map(function ($it) {
+                                    return [
+                                        'id' => $it['volid'] ?? ($it['id'] ?? null),
+                                        'name' => $it['name'] ?? ($it['filename'] ?? 'Template'),
+                                    ];
+                                }, $contentResp->json('data') ?? []));
+                            }
+                        }
+                    }
+                }
+
+                return $items;
+            }
+
+            return [];
+        } catch (\Exception $e) {
+            Log::error('Proxmox getAvailableTemplates error', ['error' => $e->getMessage()]);
+            return [];
+        }
+    }
 }

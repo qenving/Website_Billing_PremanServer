@@ -112,7 +112,7 @@ class PasswordPolicy {
             $errors[] = 'Password must contain at least one number';
         }
 
-        if (!preg_match('/[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\\/;~`]/', $password)) {
+        if (!preg_match('/[!@#$%^&*(),.?":\{\}|<>_\-+=\[\]\\\\\/;~]/', $password)) {
             $errors[] = 'Password must contain at least one special character (!@#$%^&* etc.)';
         }
 
@@ -165,7 +165,7 @@ class PasswordPolicy {
         if (preg_match('/[a-z]/', $password)) $strength += 10;
         if (preg_match('/[A-Z]/', $password)) $strength += 15;
         if (preg_match('/[0-9]/', $password)) $strength += 15;
-        if (preg_match('/[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\\/;~`]/', $password)) $strength += 20;
+        if (preg_match('/[!@#$%^&*(),.?":\{\}|<>_\-+=\[\]\\\\\/;~]/', $password)) $strength += 20;
 
         $uniqueChars = count(array_unique(str_split($password)));
         if ($uniqueChars > 8) $strength += 10;

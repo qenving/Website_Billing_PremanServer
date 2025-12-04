@@ -326,4 +326,41 @@ class ConvoyProvider implements ProvisioningProviderInterface
         $result->checkedAt = now();
         return $result;
     }
+
+    public function getAvailableTemplates(): array
+    {
+        try {
+            $response = $this->makeRequest('get', '/templates', []);
+
+            $items = [];
+            if (isset($response['data']) && is_array($response['data'])) {
+                foreach ($response['data'] as $item) {
+                    $attributes = $item['attributes'] ?? [];
+                    $items[] = [
+                        'id' => $attributes['uuid'] ?? ($attributes['id'] ?? null),
+                        'name' => $attributes['name'] ?? ($attributes['label'] ?? 'Unnamed'),
+                    ];
+                }
+            }
+
+            // Fallback: if no templates endpoint, attempt images
+            if (empty($items)) {
+                $images = $this->makeRequest('get', '/images', []);
+                if (isset($images['data']) && is_array($images['data'])) {
+                    foreach ($images['data'] as $img) {
+                        $attr = $img['attributes'] ?? [];
+                        $items[] = [
+                            'id' => $attr['uuid'] ?? ($attr['id'] ?? null),
+                            'name' => $attr['name'] ?? ($attr['label'] ?? 'Image'),
+                        ];
+                    }
+                }
+            }
+
+            return $items;
+        } catch (\Exception $e) {
+            Log::error('Convoy getAvailableTemplates error', ['error' => $e->getMessage()]);
+            return [];
+        }
+    }
 }

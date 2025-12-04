@@ -6,9 +6,49 @@ use App\Http\Controllers\Client;
 use App\Http\Controllers\Install\InstallController;
 use Illuminate\Support\Facades\Route;
 
+// Root route - redirect to installer or login
+Route::get('/', function() {
+    return redirect('/install');
+});
+
 // Installation Routes
-Route::prefix('install')->middleware('guest')->group(function () {
+Route::prefix('install')->group(function () {
     Route::get('/', [InstallController::class, 'index'])->name('install.index');
+    Route::post('/', [InstallController::class, 'index'])->name('install.post');
+    Route::post('/test_connection', function (\Illuminate\Http\Request $request) {
+        header('Content-Type: application/json');
+        
+        $input = $request->json()->all();
+        
+        $host = $input['host'] ?? '';
+        $port = $input['port'] ?? '3306';
+        $name = $input['name'] ?? '';
+        $user = $input['user'] ?? '';
+        $pass = $input['pass'] ?? '';
+        $driver = $input['driver'] ?? 'mysql';
+        
+        try {
+            if ($driver === 'sqlite') {
+                $dsn = "sqlite:" . $name;
+                // Check if directory exists and is writable
+                $dir = dirname($name);
+                if (!is_dir($dir)) {
+                     throw new \Exception("Directory does not exist: " . $dir);
+                }
+                if (!is_writable($dir)) {
+                     throw new \Exception("Directory is not writable: " . $dir);
+                }
+        
+                $pdo = new \PDO($dsn, null, null, [\PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION]);
+            } else {
+                $dsn = "mysql:host={$host};port={$port};dbname={$name};charset=utf8mb4";
+                $pdo = new \PDO($dsn, $user, $pass, [\PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION]);
+            }
+            return response()->json(['success' => true, 'message' => 'Connection successful']);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()]);
+        }
+    })->withoutMiddleware(['web'])->name('install.test-connection');
     Route::post('/environment', [InstallController::class, 'checkEnvironment'])->name('install.environment');
     Route::post('/database', [InstallController::class, 'setupDatabase'])->name('install.database');
     Route::post('/admin', [InstallController::class, 'createAdmin'])->name('install.admin');

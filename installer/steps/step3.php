@@ -194,7 +194,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (/[a-z]/.test(password)) strength += 10;
             if (/[A-Z]/.test(password)) strength += 15;
             if (/[0-9]/.test(password)) strength += 15;
-            if (/[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\\/;~`]/.test(password)) strength += 20;
+            if (/[!@#$%^&*(),.?":{}|<>_\-+=\[\]\/;~]/.test(password)) strength += 20;
 
             const uniqueChars = new Set(password).size;
             if (uniqueChars > 8) strength += 10;

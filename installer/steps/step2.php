@@ -72,13 +72,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         file_put_contents(BASE_PATH . '/config.php', $configContent);
 
+        // Preserve existing APP_KEY if it exists
+        $existingAppKey = '';
+        if (file_exists(BASE_PATH . '/.env')) {
+            $existingEnv = file_get_contents(BASE_PATH . '/.env');
+            if (preg_match('/APP_KEY=(.+)/m', $existingEnv, $matches)) {
+                $existingAppKey = trim($matches[1]);
+            }
+        }
+
+        // Generate APP_KEY if it doesn't exist
+        if (empty($existingAppKey)) {
+            $existingAppKey = 'base64:' . base64_encode(random_bytes(32));
+        }
+
         $envContent = "DB_DRIVER={$driver}\n";
         $envContent .= "DB_HOST={$host}\n";
         $envContent .= "DB_PORT={$port}\n";
         $envContent .= "DB_NAME={$name}\n";
         $envContent .= "DB_USER={$user}\n";
         $envContent .= "DB_PASS={$pass}\n";
-        $envContent .= "APP_KEY=\n";
+        $envContent .= "APP_KEY={$existingAppKey}\n";
         $envContent .= "JWT_SECRET=\n";
         $envContent .= "CAPTCHA_PROVIDER=none\n";
         $envContent .= "CAPTCHA_SITE_KEY=\n";

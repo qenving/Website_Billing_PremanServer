@@ -1,118 +1,38 @@
 <?php
 
-namespace App\Models;
+class Invoice extends Model {
+    protected $table = 'invoices';
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\SoftDeletes;
-
-class Invoice extends Model
-{
-    use HasFactory, SoftDeletes;
-
-    protected $fillable = [
-        'client_id',
-        'invoice_number',
-        'status',
-        'subtotal',
-        'tax_rate',
-        'tax_amount',
-        'total',
-        'currency',
-        'due_date',
-        'paid_at',
-        'payment_method',
-    ];
-
-    protected $casts = [
-        'subtotal' => 'decimal:2',
-        'tax_rate' => 'decimal:2',
-        'tax_amount' => 'decimal:2',
-        'total' => 'decimal:2',
-        'due_date' => 'date',
-        'paid_at' => 'datetime',
-    ];
-
-    // Relasi
-    public function client(): BelongsTo
-    {
-        return $this->belongsTo(Client::class);
+    public function generateInvoiceNumber() {
+        $prefix = 'INV';
+        $date = date('Ymd');
+        $sql = "SELECT COUNT(*) as count FROM {$this->table} WHERE invoice_number LIKE :pattern";
+        $result = $this->query($sql, ['pattern' => $prefix . $date . '%']);
+        $count = ($result[0]['count'] ?? 0) + 1;
+        return $prefix . $date . str_pad($count, 4, '0', STR_PAD_LEFT);
     }
 
-    public function items(): HasMany
-    {
-        return $this->hasMany(InvoiceItem::class);
+    public function getByUser($userId) {
+        $sql = "SELECT * FROM {$this->table} WHERE user_id = :userId ORDER BY created_at DESC";
+        return $this->query($sql, ['userId' => $userId]);
     }
 
-    public function payments(): HasMany
-    {
-        return $this->hasMany(Payment::class);
+    public function getUnpaid() {
+        return $this->where('status', '=', 'unpaid');
     }
 
-    // Helper methods
-    public function isPaid(): bool
-    {
-        return $this->status === 'paid';
-    }
-
-    public function isUnpaid(): bool
-    {
-        return $this->status === 'unpaid';
-    }
-
-    public function isOverdue(): bool
-    {
-        return $this->status === 'overdue' || ($this->isUnpaid() && $this->due_date < now());
-    }
-
-    public function markAsPaid(string $paymentMethod): void
-    {
-        $this->update([
+    public function markAsPaid($invoiceId, $paymentId = null) {
+        return $this->update($invoiceId, [
             'status' => 'paid',
-            'paid_at' => now(),
-            'payment_method' => $paymentMethod,
+            'paid_date' => date('Y-m-d H:i:s')
         ]);
     }
 
-    public function markAsOverdue(): void
-    {
-        if ($this->isUnpaid() && $this->due_date < now()) {
-            $this->update(['status' => 'overdue']);
-        }
-    }
-
-    public function calculateTotals(): void
-    {
-        $subtotal = $this->items()->sum('amount');
-        $taxAmount = ($subtotal * $this->tax_rate) / 100;
-        $total = $subtotal + $taxAmount;
-
-        $this->update([
-            'subtotal' => $subtotal,
-            'tax_amount' => $taxAmount,
-            'total' => $total,
-        ]);
-    }
-
-    // Scopes
-    public function scopeUnpaid($query)
-    {
-        return $query->whereIn('status', ['unpaid', 'overdue']);
-    }
-
-    public function scopePaid($query)
-    {
-        return $query->where('status', 'paid');
-    }
-
-    public function scopeOverdue($query)
-    {
-        return $query->where('status', 'overdue')
-            ->orWhere(function ($q) {
-                $q->where('status', 'unpaid')
-                    ->where('due_date', '<', now());
-            });
+    public function getAllWithDetails() {
+        $sql = "SELECT i.*, u.email, u.first_name, u.last_name
+                FROM {$this->table} i
+                LEFT JOIN users u ON i.user_id = u.id
+                ORDER BY i.created_at DESC";
+        return $this->query($sql);
     }
 }

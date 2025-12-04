@@ -12,6 +12,12 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // Exclude installer routes from CSRF protection
+        $middleware->validateCsrfTokens(except: [
+            'install',
+            'install/*',
+        ]);
+
         $middleware->web(append: [
             \App\Http\Middleware\CheckInstallation::class,
             \App\Http\Middleware\LoadThemeSettings::class,

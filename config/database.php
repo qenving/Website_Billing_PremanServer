@@ -3,8 +3,15 @@
 use Illuminate\Support\Str;
 
 return [
-    'default' => env('DB_CONNECTION', 'mysql'),
+    'default' => env('DB_CONNECTION', env('DB_DRIVER', 'mysql')),
     'connections' => [
+        'sqlite' => [
+            'driver' => 'sqlite',
+            'url' => env('DB_URL'),
+            'database' => env('DB_NAME', database_path('database.sqlite')),
+            'prefix' => '',
+            'foreign_key_constraints' => env('DB_FOREIGN_KEYS', true),
+        ],
         'mysql' => [
             'driver' => 'mysql',
             'url' => env('DB_URL'),

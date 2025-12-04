@@ -301,4 +301,26 @@ class VirtualizorProvider implements ProvisioningProviderInterface
         $result->checkedAt = now();
         return $result;
     }
+
+    public function getAvailableTemplates(): array
+    {
+        try {
+            // Virtualizor templates / OS list via oslist
+            $resp = $this->makeRequest('oslist', [], 'GET');
+            $items = [];
+            if (isset($resp['oses']) && is_array($resp['oses'])) {
+                foreach ($resp['oses'] as $os) {
+                    $items[] = [
+                        'id' => $os['osid'] ?? ($os['id'] ?? null),
+                        'name' => $os['osname'] ?? ($os['name'] ?? 'OS'),
+                    ];
+                }
+            }
+
+            return $items;
+        } catch (\Exception $e) {
+            Log::error('Virtualizor getAvailableTemplates error', ['error' => $e->getMessage()]);
+            return [];
+        }
+    }
 }

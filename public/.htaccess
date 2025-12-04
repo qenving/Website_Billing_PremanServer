@@ -34,7 +34,8 @@
     # Send Requests To Front Controller
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteRule ^ ../index.php [L]
+    # FIX: Changed "../index.php" to "index.php" (standard for public folder)
+    RewriteRule ^ index.php [L]
 </IfModule>
 
 # Security Headers
@@ -77,20 +78,6 @@ ServerSignature Off
     Order allow,deny
     Deny from all
 </Files>
-
-# Protect PHP Files in Uploads
-<FilesMatch "\.(php|php3|php4|php5|phtml|pl|py|jsp|asp|sh|cgi)$">
-    Order Deny,Allow
-    Deny from all
-</FilesMatch>
-
-# Allow PHP Only in Root
-<Directory />
-    <FilesMatch "\.php$">
-        Order Deny,Allow
-        Deny from all
-    </FilesMatch>
-</Directory>
 
 # PHP Security Settings
 <IfModule mod_php7.c>
